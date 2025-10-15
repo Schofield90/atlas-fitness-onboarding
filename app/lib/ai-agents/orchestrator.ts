@@ -228,6 +228,12 @@ export class AgentOrchestrator {
         agent,
         messages,
         tools,
+        {
+          conversationId,
+          organizationId,
+          userId,
+          agentId: agent.id,
+        },
       );
 
       if (!executionResult.success) {
@@ -336,6 +342,12 @@ export class AgentOrchestrator {
     agent: any,
     messageHistory: any[],
     tools: any[],
+    context: {
+      conversationId: string;
+      organizationId: string;
+      userId: string;
+      agentId: string;
+    },
   ): Promise<{
     success: boolean;
     content?: string;
@@ -349,7 +361,7 @@ export class AgentOrchestrator {
     if (model.startsWith("gpt-")) {
       return this.executeConversationOpenAI(agent, messageHistory, tools);
     } else if (model.startsWith("claude-")) {
-      return this.executeConversationAnthropic(agent, messageHistory, tools);
+      return this.executeConversationAnthropic(agent, messageHistory, tools, context);
     } else {
       return {
         success: false,
@@ -419,6 +431,12 @@ export class AgentOrchestrator {
     agent: any,
     messageHistory: any[],
     tools: any[],
+    context: {
+      conversationId: string;
+      organizationId: string;
+      userId: string;
+      agentId: string;
+    },
   ): Promise<{
     success: boolean;
     content?: string;
@@ -494,6 +512,114 @@ export class AgentOrchestrator {
           input: block.input,
         })) || [];
 
+    // Execute tools if Claude requested them
+    if (toolUses.length > 0) {
+      console.log(`[Orchestrator] Executing ${toolUses.length} tools...`);
+
+      // Build messages array for the second turn
+      const followUpMessages = [...messages];
+
+      // Add Claude's first response with tool uses
+      followUpMessages.push({
+        role: "assistant" as const,
+        content: result.content || [],
+      });
+
+      // Execute each tool and add results
+      for (const toolUse of toolUses) {
+        console.log(`[Orchestrator] Executing tool: ${toolUse.name}`);
+
+        try {
+          // Execute the tool
+          const toolResult = await this.toolRegistry.executeTool(
+            toolUse.name,
+            toolUse.input,
+            {
+              agentId: context.agentId,
+              organizationId: context.organizationId,
+              conversationId: context.conversationId,
+              userId: context.userId,
+            }
+          );
+
+          console.log(`[Orchestrator] Tool result:`, toolResult.success ? 'SUCCESS' : 'FAILED');
+
+          // Add tool result to messages
+          followUpMessages.push({
+            role: "user" as const,
+            content: [{
+              type: "tool_result" as const,
+              tool_use_id: toolUse.id,
+              content: JSON.stringify(toolResult),
+            }],
+          });
+        } catch (error: any) {
+          console.error(`[Orchestrator] Tool execution error:`, error.message);
+
+          // Add error result to messages
+          followUpMessages.push({
+            role: "user" as const,
+            content: [{
+              type: "tool_result" as const,
+              tool_use_id: toolUse.id,
+              content: JSON.stringify({
+                success: false,
+                error: error.message || "Tool execution failed",
+              }),
+            }],
+          });
+        }
+      }
+
+      // Call Claude again with tool results
+      console.log(`[Orchestrator] Sending tool results back to Claude...`);
+      const finalResult = await provider.execute(followUpMessages, {
+        model: agent.model,
+        temperature: agent.temperature ?? 0.7,
+        max_tokens: agent.max_tokens ?? 4096,
+        system: systemPrompt,
+        tools: tools.length > 0 ? tools : undefined,
+      });
+
+      if (!finalResult.success) {
+        return {
+          success: false,
+          error: finalResult.error,
+          cost: {
+            ...result.cost,
+            // Combine costs from both calls
+            inputTokens: result.cost.inputTokens + (finalResult.cost?.inputTokens || 0),
+            outputTokens: result.cost.outputTokens + (finalResult.cost?.outputTokens || 0),
+            totalTokens: result.cost.totalTokens + (finalResult.cost?.totalTokens || 0),
+            costBaseCents: result.cost.costBaseCents + (finalResult.cost?.costBaseCents || 0),
+            costBilledCents: result.cost.costBilledCents + (finalResult.cost?.costBilledCents || 0),
+          },
+        };
+      }
+
+      // Extract final text content
+      const finalText = finalResult.content
+        ?.filter((block: any) => block.type === "text")
+        .map((block: any) => block.text)
+        .join("") || "";
+
+      // Return final response with combined costs
+      return {
+        success: true,
+        content: finalText,
+        tool_calls: toolUses, // Store original tool calls
+        cost: {
+          ...result.cost,
+          inputTokens: result.cost.inputTokens + finalResult.cost.inputTokens,
+          outputTokens: result.cost.outputTokens + finalResult.cost.outputTokens,
+          totalTokens: result.cost.totalTokens + finalResult.cost.totalTokens,
+          costBaseCents: result.cost.costBaseCents + finalResult.cost.costBaseCents,
+          costBilledCents: result.cost.costBilledCents + finalResult.cost.costBilledCents,
+        },
+      };
+    }
+
+    // No tool uses, return text response
     return {
       success: true,
       content: textContent,
