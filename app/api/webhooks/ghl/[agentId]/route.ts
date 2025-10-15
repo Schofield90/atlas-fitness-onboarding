@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getOrchestrator } from "@/app/lib/ai-agents/orchestrator";
+import { checkAgentGuardrails } from "@/app/lib/ai-agents/guardrails";
 import crypto from "crypto";
 
 /**
@@ -205,7 +206,54 @@ export async function POST(
       console.log(`[GHL Webhook] Created new conversation: ${conversationId}`);
     }
 
-    // 6. Execute the AI agent to generate a response
+    // 6. Check guardrails before allowing AI to respond
+    console.log(`[GHL Webhook] Checking guardrails for agent ${agentId}...`);
+
+    const guardrailCheck = await checkAgentGuardrails({
+      agentId,
+      leadId,
+      conversationId,
+      ghlTags: (payload.tags || []).join(','), // Convert array to comma-separated string
+      contactPhone,
+      organizationId: agent.organization_id,
+      supabase,
+    });
+
+    if (!guardrailCheck.allowed) {
+      console.log(`[GHL Webhook] ⛔ Blocked by guardrail: ${guardrailCheck.reason}`);
+      console.log(`[GHL Webhook] Guardrail: ${guardrailCheck.guardrailName} (${guardrailCheck.guardrailType})`);
+
+      // Log the blocked attempt to activity log
+      await supabase.from('ai_agent_activity_log').insert({
+        agent_id: agentId,
+        organization_id: agent.organization_id,
+        action_type: 'guardrail_block',
+        details: {
+          guardrail_id: guardrailCheck.guardrailId,
+          guardrail_name: guardrailCheck.guardrailName,
+          guardrail_type: guardrailCheck.guardrailType,
+          reason: guardrailCheck.reason,
+          conversation_id: conversationId,
+          lead_id: leadId,
+          contact_phone: contactPhone,
+          ghl_tags: payload.tags,
+        },
+        created_by: agent.created_by,
+      });
+
+      // Return success but don't send message
+      return NextResponse.json({
+        success: true,
+        blocked: true,
+        reason: guardrailCheck.reason,
+        guardrail: guardrailCheck.guardrailName,
+        message: "Message blocked by guardrail system",
+      });
+    }
+
+    console.log(`[GHL Webhook] ✅ All guardrails passed`);
+
+    // 7. Execute the AI agent to generate a response
     // Note: The orchestrator will handle storing both the user message and assistant response
     console.log(`[GHL Webhook] Executing agent ${agentId} for conversation ${conversationId}`);
     console.log(`[GHL Webhook] User message: "${message}"`);

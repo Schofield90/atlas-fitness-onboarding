@@ -1,26 +1,33 @@
-#!/usr/bin/env node
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const SUPABASE_URL = 'https://lzlrojoaxrqvmhempnkn.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+dotenv.config({ path: '.env.development.local' });
 
-const AGENT_ID = '00f2d394-28cd-43ee-8db4-8f841c5d4873';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-const { data: agent } = await supabase
+const agentId = '1b44af8e-d29d-4fdf-98a8-ab586a289e5e';
+
+const { data: agent, error } = await supabase
   .from('ai_agents')
   .select('*')
-  .eq('id', AGENT_ID)
+  .eq('id', agentId)
   .single();
 
-console.log('Agent Configuration:');
-console.log('==================');
-console.log('Name:', agent.name);
-console.log('Model:', agent.model);
-console.log('Temperature:', agent.temperature);
-console.log('Max Tokens:', agent.max_tokens);
-console.log('Enabled:', agent.enabled);
-console.log('Tools Count:', agent.allowed_tools?.length || 0);
-console.log('Tools:', agent.allowed_tools);
-console.log('\nSystem Prompt Length:', agent.system_prompt?.length || 0);
-console.log('Metadata:', JSON.stringify(agent.metadata, null, 2));
+if (error) {
+  console.log('❌ Error:', error.message);
+} else {
+  console.log('\n🤖 Agent Configuration:');
+  console.log('  Name:', agent.name);
+  console.log('  Model:', agent.model);
+  console.log('  Max Tokens:', agent.max_tokens);
+  console.log('  Temperature:', agent.temperature);
+  console.log('  System Prompt Length:', agent.system_prompt?.length || 0, 'chars');
+  console.log('\n💡 Issue: max_tokens too low for GPT-5 reasoning model');
+  console.log('   Current:', agent.max_tokens);
+  console.log('   Needed: 16000+ (to allow reasoning + content)');
+}
+
+console.log('\n');

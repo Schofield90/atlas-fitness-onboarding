@@ -13,6 +13,7 @@ import {
   SparklesIcon,
   Cog8ToothIcon,
   DocumentTextIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
 interface Stats {
@@ -156,7 +157,7 @@ export default function LeadBotsPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <Link
           href="/saas-admin/lead-bots/conversations"
           className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
@@ -185,10 +186,19 @@ export default function LeadBotsPage() {
         </Link>
 
         <Link
+          href="/saas-admin/lead-bots/guardrails"
+          className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
+        >
+          <ShieldCheckIcon className="h-8 w-8 text-green-500 mb-3" />
+          <h3 className="text-lg font-semibold text-white mb-1">Guardrails</h3>
+          <p className="text-sm text-gray-400">AI safety controls</p>
+        </Link>
+
+        <Link
           href="/saas-admin/lead-bots/templates"
           className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
         >
-          <ClockIcon className="h-8 w-8 text-green-500 mb-3" />
+          <ClockIcon className="h-8 w-8 text-yellow-500 mb-3" />
           <h3 className="text-lg font-semibold text-white mb-1">Task Templates</h3>
           <p className="text-sm text-gray-400">Edit follow-up automations</p>
         </Link>
@@ -197,9 +207,9 @@ export default function LeadBotsPage() {
           href="/saas-admin/lead-bots/agents"
           className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
         >
-          <SparklesIcon className="h-8 w-8 text-orange-500 mb-3" />
-          <h3 className="text-lg font-semibold text-white mb-1">AI Agents</h3>
-          <p className="text-sm text-gray-400">Create & manage AI agents</p>
+          <Cog8ToothIcon className="h-8 w-8 text-orange-500 mb-3" />
+          <h3 className="text-lg font-semibold text-white mb-1">Agent Config</h3>
+          <p className="text-sm text-gray-400">Configure AI agents</p>
         </Link>
       </div>
 

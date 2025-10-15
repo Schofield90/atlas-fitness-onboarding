@@ -120,3 +120,4 @@ DELETE_*.sql
 \!next.config.js
 \!postcss.config.js
 \!tailwind.config.js
+.env.development.local
