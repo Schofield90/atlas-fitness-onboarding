@@ -114,6 +114,19 @@ export class OpenAIProvider {
 
       const responseMessage = completion.choices[0]?.message;
 
+      // Debug logging for GPT-5 and reasoning models
+      if (isNewerModel) {
+        console.log(`[OpenAI Provider] Model: ${options.model}`);
+        console.log(`[OpenAI Provider] Response message:`, {
+          content: responseMessage?.content,
+          refusal: responseMessage?.refusal,
+          role: responseMessage?.role,
+          hasToolCalls: !!responseMessage?.tool_calls,
+        });
+        console.log(`[OpenAI Provider] Usage:`, usage);
+        console.log(`[OpenAI Provider] Finish reason:`, completion.choices[0]?.finish_reason);
+      }
+
       return {
         success: true,
         message: responseMessage,

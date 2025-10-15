@@ -205,29 +205,8 @@ export async function POST(
       console.log(`[GHL Webhook] Created new conversation: ${conversationId}`);
     }
 
-    // 6. Store the incoming message from the lead
-    const { error: messageError } = await supabase
-      .from("ai_agent_messages")
-      .insert({
-        conversation_id: conversationId,
-        role: "user",
-        content: message,
-        metadata: {
-          ghl_contact_id: contactId,
-          ghl_workflow: payload.workflow,
-          webhook_timestamp: new Date().toISOString(),
-        },
-      });
-
-    if (messageError) {
-      console.error("[GHL Webhook] Failed to store message:", messageError);
-      return NextResponse.json(
-        { error: "Failed to store message" },
-        { status: 500 }
-      );
-    }
-
-    // 7. Execute the AI agent to generate a response
+    // 6. Execute the AI agent to generate a response
+    // Note: The orchestrator will handle storing both the user message and assistant response
     console.log(`[GHL Webhook] Executing agent ${agentId} for conversation ${conversationId}`);
     console.log(`[GHL Webhook] User message: "${message}"`);
 
@@ -247,11 +226,12 @@ export async function POST(
       );
     }
 
-    // 8. Get the AI response message (already stored by orchestrator)
-    const aiMessage = agentResponse.message;
+    // 7. Get the AI response message (already stored by orchestrator)
+    const aiMessage = agentResponse.assistantMessage?.content || "";
     console.log(`[GHL Webhook] AI response: "${aiMessage}"`);
+    console.log(`[GHL Webhook] Tokens used: ${agentResponse.assistantMessage?.tokens_used || 0}`);
 
-    // 9. Send response back to GoHighLevel via SMS (if API key configured)
+    // 8. Send response back to GoHighLevel via SMS (if API key configured)
     if (agent.ghl_api_key && contactPhone) {
       try {
         await sendSMSToGHL(
@@ -266,7 +246,7 @@ export async function POST(
       }
     }
 
-    // 10. Check if agent should schedule a follow-up
+    // 9. Check if agent should schedule a follow-up
     if (agent.follow_up_config?.enabled) {
       const delayHours = agent.follow_up_config.delay_hours || 24;
       const nextRunAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
@@ -296,8 +276,8 @@ export async function POST(
       conversationId,
       leadId,
       message: aiMessage,
-      tokensUsed: agentResponse.tokensUsed,
-      costUsd: agentResponse.costUsd,
+      tokensUsed: agentResponse.assistantMessage?.tokens_used || 0,
+      costUsd: agentResponse.assistantMessage?.cost_usd || 0,
     });
 
   } catch (error: any) {
