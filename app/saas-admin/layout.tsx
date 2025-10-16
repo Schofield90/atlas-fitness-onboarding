@@ -8,7 +8,7 @@ export default function SaasAdminLayout({
   return (
     <div className="flex min-h-screen bg-gray-900">
       <AdminSidebar />
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 overflow-x-hidden ml-64">
         {children}
       </main>
     </div>
