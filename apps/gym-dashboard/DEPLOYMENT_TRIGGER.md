@@ -1,6 +1,27 @@
 # Deployment Trigger
 
-Last updated: October 16, 2025 - Sentiment Training System Complete
+Last updated: October 16, 2025 - Lead Bots Navigation Added
+
+## Recent Deployments
+
+### October 16, 2025 - 🚀 NAVIGATION: Lead Bots Menu Item Added
+
+- **FEATURE**: Added "Lead Bots" navigation link between "AI Chat Agents" and "Analytics"
+- **LOCATION**: Main sidebar navigation menu
+- **ROUTE**: `/saas-admin/lead-bots`
+- **ICON**: Shield with checkmark (security/protection theme)
+- **WHAT IT DOES**: Access hub for AI agent testing, conversation review, and training
+- **SUB-PAGES AVAILABLE**:
+  - `/saas-admin/lead-bots` - Main dashboard
+  - `/saas-admin/lead-bots/test/[agentId]` - Real-time agent testing UI
+  - `/saas-admin/lead-bots/review` - Flagged conversations review
+  - `/saas-admin/lead-bots/guardrails` - Natural language guardrails management
+  - `/saas-admin/lead-bots/reports` - Performance reports
+  - `/saas-admin/lead-bots/sops` - System prompt management
+- **FILES CHANGED**:
+  - `/apps/gym-dashboard/app/components/DashboardLayout.tsx` (lines 539-557)
+- **STATUS**: Now deployed and accessible from sidebar
+- **USER REQUEST**: "where is the ai testing bit we made before, I cant see it in the side menu"
 
 ## Recent Deployments
 
