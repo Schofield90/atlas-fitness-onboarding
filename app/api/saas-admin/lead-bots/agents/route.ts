@@ -174,6 +174,7 @@ export async function GET(request: NextRequest) {
       ghlLocationId: agent.metadata?.gohighlevel_location_id || '',
       ghlApiKey: agent.metadata?.gohighlevel_api_key || '',
       ghlCalendarId: agent.metadata?.gohighlevel_calendar_id || '',
+      ghlPrivateIntegrationKey: agent.metadata?.gohighlevel_private_integration_key || '',
     }));
 
     return NextResponse.json({
