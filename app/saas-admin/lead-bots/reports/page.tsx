@@ -60,15 +60,26 @@ export default function AgentReportsPage() {
         }
 
         const data = await response.json();
-        console.log("[Reports] Received:", data);
+        console.log("[Reports] API Response:", {
+          status: response.status,
+          organizationId: data.organizationId,
+          agentsCount: data.agents?.length || 0,
+          agents: data.agents
+        });
 
         if (data.organizationId) {
           setOrganizationId(data.organizationId);
+          console.log("[Reports] Organization ID set:", data.organizationId);
+        } else {
+          console.warn("[Reports] No organizationId in response");
         }
 
-        if (data.agents) {
-          console.log("[Reports] Found agents:", data.agents);
+        if (data.agents && data.agents.length > 0) {
+          console.log("[Reports] Setting agents:", data.agents);
           setAgents(data.agents);
+        } else {
+          console.warn("[Reports] No agents found in response");
+          setAgents([]);
         }
       } catch (error) {
         console.error("[Reports] Error fetching agents:", error);
@@ -233,7 +244,25 @@ export default function AgentReportsPage() {
         </div>
       </div>
 
-        {/* Loading State */}
+        {/* Info Banner */}
+      {agents.length === 0 && !loading && (
+        <div className="bg-blue-900 border border-blue-700 rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-blue-200 mb-2">📊 Agent Performance Reporting</h3>
+          <p className="text-blue-100 mb-3">
+            Performance metrics are automatically tracked when leads interact with AI agents. Metrics include:
+          </p>
+          <ul className="list-disc list-inside text-blue-100 space-y-1 ml-4">
+            <li>Lead responses and engagement</li>
+            <li>Call bookings and attendance</li>
+            <li>Sales conversions and outcomes</li>
+          </ul>
+          <p className="text-blue-200 mt-4 text-sm">
+            <strong>No agents found.</strong> Agents are created automatically when GoHighLevel webhooks are configured.
+          </p>
+        </div>
+      )}
+
+      {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
