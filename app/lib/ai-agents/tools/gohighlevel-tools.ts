@@ -400,6 +400,32 @@ export class BookGHLAppointmentTool extends BaseTool {
       return tomorrow.toISOString().split("T")[0];
     }
 
+    // Handle day names (Monday, Tuesday, etc.)
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const dayIndex = dayNames.findIndex(day => input.includes(day));
+
+    if (dayIndex !== -1) {
+      const today = new Date();
+      const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      let daysUntilTarget = dayIndex - currentDay;
+
+      // If target day is today or in the past this week, assume next week
+      if (daysUntilTarget <= 0) {
+        daysUntilTarget += 7;
+      }
+
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntilTarget);
+      return targetDate.toISOString().split("T")[0];
+    }
+
+    // Handle "next Monday", "next week", etc.
+    if (input.includes("next week")) {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      return nextWeek.toISOString().split("T")[0];
+    }
+
     // Already in ISO format
     if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
       return input;
