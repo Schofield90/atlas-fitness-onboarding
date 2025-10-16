@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get all agents for this organization
-    const { data: agents, error: agentsError } = await supabase
+    // Get all GHL agents for this organization (filter for GHL integration)
+    const { data: allAgents, error: agentsError } = await supabase
       .from("ai_agents")
-      .select("id, name")
+      .select("id, name, ghl_api_key, ghl_calendar_id, allowed_tools")
       .eq("organization_id", organizationId);
 
     if (agentsError) {
@@ -46,6 +46,18 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Filter for GHL lead agents: must have GHL configuration OR booking tool enabled
+    const agents = (allAgents || []).filter(agent => {
+      const hasGhlApiKey = !!agent.ghl_api_key;
+      const hasGhlCalendar = !!agent.ghl_calendar_id;
+      const hasBookingTool = agent.allowed_tools?.includes('book_ghl_appointment');
+
+      return hasGhlApiKey || hasGhlCalendar || hasBookingTool;
+    }).map(agent => ({
+      id: agent.id,
+      name: agent.name
+    }));
 
     // Refresh snapshots for all agents in parallel
     const refreshPromises = agents.map((agent) =>
