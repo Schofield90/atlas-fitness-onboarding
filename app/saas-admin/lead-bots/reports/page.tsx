@@ -52,48 +52,26 @@ export default function AgentReportsPage() {
   // Fetch organization ID and agents on mount
   useEffect(() => {
     const fetchInitialData = async () => {
-      const supabase = createClient();
-
-      // Get current user's organization
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Try user_organizations first
-      let { data: userOrg } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      // Fallback to organization_staff if not found
-      if (!userOrg) {
-        const { data: staffOrg } = await supabase
-          .from("organization_staff")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        userOrg = staffOrg;
-      }
-
-      if (userOrg?.organization_id) {
-        setOrganizationId(userOrg.organization_id);
-
-        // Fetch agents for this organization
-        const { data: agentsData, error: agentsError } = await supabase
-          .from("ai_agents")
-          .select("id, name, organization_id")
-          .eq("organization_id", userOrg.organization_id)
-          .order("name");
-
-        if (agentsError) {
-          console.error("[Reports] Error fetching agents:", agentsError);
+      try {
+        const response = await fetch("/api/saas-admin/reports/agents");
+        if (!response.ok) {
+          console.error("[Reports] Failed to fetch agents");
+          return;
         }
 
-        if (agentsData) {
-          console.log("[Reports] Found agents:", agentsData);
-          setAgents(agentsData);
+        const data = await response.json();
+        console.log("[Reports] Received:", data);
+
+        if (data.organizationId) {
+          setOrganizationId(data.organizationId);
         }
+
+        if (data.agents) {
+          console.log("[Reports] Found agents:", data.agents);
+          setAgents(data.agents);
+        }
+      } catch (error) {
+        console.error("[Reports] Error fetching agents:", error);
       }
     };
 
