@@ -119,12 +119,22 @@ export class BookGHLAppointmentTool extends BaseTool {
       // Parse natural language time to 24-hour format
       const parsedTime = this.parseTime(validated.preferredTime);
 
+      console.log(`[GHL Tool] Fetching slots for date: ${parsedDate}, requested time: ${parsedTime}`);
+
       // Get available slots from GHL calendar (v2 API already filters booked times)
       const availableSlots = await this.getAvailableSlots(
         apiKey,
         calendarId,
         parsedDate,
       );
+
+      console.log(`[GHL Tool] Retrieved ${availableSlots.length} available slots from GHL API`);
+      if (availableSlots.length > 0) {
+        const firstFive = availableSlots.slice(0, 5).map(s =>
+          new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+        );
+        console.log(`[GHL Tool] First 5 slots: ${firstFive.join(', ')}`);
+      }
 
       if (availableSlots.length === 0) {
         return {
@@ -141,6 +151,7 @@ export class BookGHLAppointmentTool extends BaseTool {
 
       if (parsedTime) {
         // User requested specific time - find exact match
+        console.log(`[GHL Tool] Looking for exact match for time: ${parsedTime}`);
         selectedSlot = availableSlots.find((slot) => {
           const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
           return slotTime === parsedTime;
@@ -157,6 +168,8 @@ export class BookGHLAppointmentTool extends BaseTool {
             }))
             .join(', ');
 
+          console.log(`[GHL Tool] ❌ Requested time ${parsedTime} not available. Offering alternatives: ${availableTimes}`);
+
           return {
             success: false,
             error: `The requested time ${parsedTime} is not available`,
@@ -166,9 +179,13 @@ export class BookGHLAppointmentTool extends BaseTool {
             },
           };
         }
+
+        console.log(`[GHL Tool] ✅ Found matching slot at ${parsedTime}`);
       } else {
         // No specific time requested - use first available
         selectedSlot = availableSlots[0];
+        const firstTime = new Date(selectedSlot.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        console.log(`[GHL Tool] No specific time requested, using first available slot: ${firstTime}`);
       }
 
       // Book appointment via GHL v1 API

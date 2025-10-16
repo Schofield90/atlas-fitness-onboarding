@@ -253,6 +253,7 @@ export class AgentOrchestrator {
             role: "assistant",
             content: executionResult.content || "",
             tool_calls: executionResult.tool_calls || null,
+            tool_results: executionResult.tool_results || null, // Save tool execution results (NEW)
             tokens_used: executionResult.cost.totalTokens,
             cost_usd: executionResult.cost.costBilledCents / 100,
             model: agent.model,
@@ -525,6 +526,9 @@ export class AgentOrchestrator {
         content: result.content || [],
       });
 
+      // Collect tool results for database storage
+      const toolResults: any[] = [];
+
       // Execute each tool and add results
       for (const toolUse of toolUses) {
         console.log(`[Orchestrator] Executing tool: ${toolUse.name}`);
@@ -547,6 +551,13 @@ export class AgentOrchestrator {
             console.log(`[Orchestrator] Tool error details:`, JSON.stringify(toolResult, null, 2));
           }
 
+          // Store tool result for database (NEW)
+          toolResults.push({
+            tool_use_id: toolUse.id,
+            tool_name: toolUse.name,
+            result: toolResult,
+          });
+
           // Add tool result to messages
           followUpMessages.push({
             role: "user" as const,
@@ -560,16 +571,25 @@ export class AgentOrchestrator {
         } catch (error: any) {
           console.error(`[Orchestrator] Tool execution error:`, error.message);
 
+          const errorResult = {
+            success: false,
+            error: error.message || "Tool execution failed",
+          };
+
+          // Store error result for database (NEW)
+          toolResults.push({
+            tool_use_id: toolUse.id,
+            tool_name: toolUse.name,
+            result: errorResult,
+          });
+
           // Add error result to messages
           followUpMessages.push({
             role: "user" as const,
             content: [{
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
-              content: JSON.stringify({
-                success: false,
-                error: error.message || "Tool execution failed",
-              }),
+              content: JSON.stringify(errorResult),
             }],
           });
         }
@@ -612,6 +632,7 @@ export class AgentOrchestrator {
         success: true,
         content: finalText,
         tool_calls: toolUses, // Store original tool calls
+        tool_results: toolResults, // Store tool execution results (NEW)
         cost: {
           ...result.cost,
           inputTokens: result.cost.inputTokens + finalResult.cost.inputTokens,
