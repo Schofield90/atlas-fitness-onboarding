@@ -17,6 +17,13 @@ import {
   checkOrgRateLimit,
   checkAgentRateLimit,
 } from "./rate-limiter";
+import {
+  logToolError,
+  detectPotentialHallucination,
+  addSelfDebugInstructions,
+  type DebugContext,
+} from "./self-debug";
+import { checkAndFlagIfNeeded } from "./sentiment-detector";
 
 export interface AgentTask {
   id: string;
@@ -101,7 +108,7 @@ export class AgentOrchestrator {
   private toolRegistry = new ToolRegistry();
 
   /**
-   * Load agent's system prompt with appended SOPs (Standard Operating Procedures)
+   * Load agent's system prompt with appended SOPs (Standard Operating Procedures) and self-debug instructions
    */
   private async loadAgentSystemPrompt(agentId: string, basePrompt: string): Promise<string> {
     try {
@@ -116,23 +123,27 @@ export class AgentOrchestrator {
         .eq('agent_id', agentId)
         .order('sort_order', { ascending: true });
 
-      if (sopsError || !agentSops || agentSops.length === 0) {
-        // No SOPs configured, use base prompt only
-        return basePrompt;
+      let promptWithSops = basePrompt;
+
+      if (!sopsError && agentSops && agentSops.length > 0) {
+        // Concatenate SOPs in order
+        const sopContents = agentSops
+          .map((item: any) => item.sop?.content)
+          .filter(Boolean)
+          .join('\n\n---\n\n');
+
+        // Append SOPs to base prompt
+        promptWithSops = `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\nFollow these procedures when responding to leads:\n\n${sopContents}`;
       }
 
-      // Concatenate SOPs in order
-      const sopContents = agentSops
-        .map((item: any) => item.sop?.content)
-        .filter(Boolean)
-        .join('\n\n---\n\n');
+      // Add self-debugging instructions to prevent hallucinations (NEW)
+      const finalPrompt = addSelfDebugInstructions(promptWithSops);
 
-      // Append SOPs to base prompt
-      return `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\nFollow these procedures when responding to leads:\n\n${sopContents}`;
+      return finalPrompt;
     } catch (error) {
       console.error('[Orchestrator] Error loading SOPs:', error);
-      // If SOP loading fails, use base prompt only
-      return basePrompt;
+      // If SOP loading fails, still add self-debug instructions to base prompt
+      return addSelfDebugInstructions(basePrompt);
     }
   }
 
@@ -267,6 +278,29 @@ export class AgentOrchestrator {
           error: "Failed to save assistant message",
           cost: executionResult.cost,
         };
+      }
+
+      // 6b. Check for negative sentiment and flag if needed
+      try {
+        const flagId = await checkAndFlagIfNeeded(
+          userMessage,
+          executionResult.content || "",
+          {
+            agentId: agent.id,
+            conversationId,
+            messageId: assistantMsg.id,
+            organizationId,
+            triggerMessage: userMessage,
+            agentResponse: executionResult.content || "",
+          }
+        );
+
+        if (flagId) {
+          console.log(`[Orchestrator] Conversation flagged for review: ${flagId}`);
+        }
+      } catch (sentimentError) {
+        // Don't fail the entire request if sentiment detection fails
+        console.error("[Orchestrator] Sentiment detection error:", sentimentError);
       }
 
       // 7. Update conversation stats
@@ -576,6 +610,22 @@ export class AgentOrchestrator {
             error: error.message || "Tool execution failed",
           };
 
+          // Log to self-debug system (NEW)
+          await logToolError(
+            {
+              agentId: context.agentId,
+              conversationId: context.conversationId,
+              organizationId: context.organizationId,
+            },
+            {
+              toolName: toolUse.name,
+              toolInput: toolUse.input,
+              toolOutput: errorResult,
+              errorMessage: error.message || "Tool execution failed",
+              errorStack: error.stack,
+            }
+          );
+
           // Store error result for database (NEW)
           toolResults.push({
             tool_use_id: toolUse.id,
@@ -626,6 +676,44 @@ export class AgentOrchestrator {
         ?.filter((block: any) => block.type === "text")
         .map((block: any) => block.text)
         .join("") || "";
+
+      // Check for hallucinations (agent claiming success when tools failed) (NEW)
+      const hallucinationCheck = detectPotentialHallucination(finalText, toolResults);
+      if (hallucinationCheck.detected) {
+        console.warn(`[Orchestrator] Hallucination detected: ${hallucinationCheck.reason}`);
+        // Log hallucination for debugging (don't block response)
+        await logHallucinationDetected(
+          {
+            agentId: context.agentId,
+            conversationId: context.conversationId,
+            organizationId: context.organizationId,
+          },
+          {
+            detectedIn: "final_response",
+            actualResult: toolResults,
+            claimedResult: finalText.substring(0, 200), // First 200 chars
+          }
+        );
+      }
+
+      // Log failed tool executions (success: false) (NEW)
+      for (const toolResult of toolResults) {
+        if (toolResult.result && !toolResult.result.success) {
+          await logToolError(
+            {
+              agentId: context.agentId,
+              conversationId: context.conversationId,
+              organizationId: context.organizationId,
+            },
+            {
+              toolName: toolResult.tool_name,
+              toolInput: toolUses.find((t) => t.id === toolResult.tool_use_id)?.input || {},
+              toolOutput: toolResult.result,
+              errorMessage: toolResult.result.error || "Tool execution failed",
+            }
+          );
+        }
+      }
 
       // Return final response with combined costs
       return {
