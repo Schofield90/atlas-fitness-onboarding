@@ -106,8 +106,8 @@ export default function AdminSidebar({ role = "platform_owner" }: AdminSidebarPr
   });
 
   return (
-    <div className="w-64 bg-gray-800 border-r border-gray-700 min-h-screen">
-      <nav className="mt-5 px-2">
+    <div className="w-64 bg-gray-800 border-r border-gray-700 min-h-screen flex flex-col">
+      <nav className="mt-5 px-2 flex-1 overflow-y-auto pb-20">
         <div className="space-y-1">
           {filteredNav.map((item) => {
             const isActive = pathname === item.href;
