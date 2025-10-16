@@ -5,6 +5,9 @@ import { createClient } from "@/app/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import { Calendar, AlertTriangle, MessageSquare, CheckCircle, XCircle, Clock } from "lucide-react";
 
+// Disable static rendering - this page requires client-side features
+export const dynamic = 'force-dynamic';
+
 /**
  * Human Review UI for Flagged Conversations
  *
