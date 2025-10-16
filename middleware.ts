@@ -168,12 +168,20 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // Check if route is public
+  // Check if route is public - IMPORTANT: Must check this BEFORE session validation
   const isPublicRoute = publicRoutes.some(route =>
     pathname === route || pathname.startsWith(route + '/')
   )
 
   if (isPublicRoute) {
+    console.log('[Middleware] Public route detected, bypassing auth:', pathname)
+    return res
+  }
+
+  // CRITICAL: Explicitly bypass /signin and /saas-admin routes
+  // These routes handle their own authentication (email whitelist)
+  if (pathname === '/signin' || pathname.startsWith('/saas-admin')) {
+    console.log('[Middleware] Auth route detected, bypassing middleware:', pathname)
     return res
   }
 

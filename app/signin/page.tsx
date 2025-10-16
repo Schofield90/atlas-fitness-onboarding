@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { createClient } from "@/app/lib/supabase/client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -20,51 +19,36 @@ function SignInForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const redirect = searchParams.get("redirect") || "/saas-admin";
-  const supabase = createClient();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Validate email domain
-    if (!email.endsWith("@gymleadhub.co.uk")) {
-      setError("Access restricted to @gymleadhub.co.uk email addresses");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call API route for authentication (server-side with manual cookie handling)
+      const response = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        setError(error.message);
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        setError(data.error || "Login failed - please try again");
         setLoading(false);
         return;
       }
 
-      if (data?.user) {
-        // Verify user email is sam@gymleadhub.co.uk
-        if (data.user.email?.toLowerCase() !== "sam@gymleadhub.co.uk") {
-          setError("You do not have admin access to this platform");
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        // Successful login - use full page reload to ensure session is loaded
-        window.location.href = redirect;
-      }
+      // Success - redirect using router.push (client-side navigation)
+      router.push(redirect);
     } catch (err: any) {
       setError("An unexpected error occurred");
       console.error("Login error:", err);
-    } finally {
       setLoading(false);
     }
   };
