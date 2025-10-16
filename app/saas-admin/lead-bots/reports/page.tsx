@@ -58,23 +58,40 @@ export default function AgentReportsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: userOrg } = await supabase
+      // Try user_organizations first
+      let { data: userOrg } = await supabase
         .from("user_organizations")
         .select("organization_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
+
+      // Fallback to organization_staff if not found
+      if (!userOrg) {
+        const { data: staffOrg } = await supabase
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        userOrg = staffOrg;
+      }
 
       if (userOrg?.organization_id) {
         setOrganizationId(userOrg.organization_id);
 
         // Fetch agents for this organization
-        const { data: agentsData } = await supabase
+        const { data: agentsData, error: agentsError } = await supabase
           .from("ai_agents")
           .select("id, name, organization_id")
           .eq("organization_id", userOrg.organization_id)
           .order("name");
 
+        if (agentsError) {
+          console.error("[Reports] Error fetching agents:", agentsError);
+        }
+
         if (agentsData) {
+          console.log("[Reports] Found agents:", agentsData);
           setAgents(agentsData);
         }
       }
