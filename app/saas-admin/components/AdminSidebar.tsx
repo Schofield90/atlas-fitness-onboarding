@@ -73,6 +73,12 @@ export default function AdminSidebar({ role = "platform_owner" }: AdminSidebarPr
       indent: true,
     },
     {
+      name: "Reports",
+      href: "/saas-admin/lead-bots/reports",
+      icon: ChartBarIcon,
+      indent: true,
+    },
+    {
       name: "Task Templates",
       href: "/saas-admin/lead-bots/templates",
       icon: ClipboardDocumentListIcon,
