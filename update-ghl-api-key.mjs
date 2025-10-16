@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.development.local' });
+dotenv.config({ path: '.env.local' });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,30 +9,85 @@ const supabase = createClient(
 );
 
 const agentId = '1b44af8e-d29d-4fdf-98a8-ab586a289e5e';
-const apiKey = 'pit-9088050f-8ee2-444a-9f81-e4bd8f749dfa';
 
-console.log('\n🔧 Updating agent with GHL API key...\n');
+// Get API key from command line argument
+const newApiKey = process.argv[2];
 
-const { data, error } = await supabase
-  .from('ai_agents')
-  .update({
-    ghl_api_key: apiKey,
-    updated_at: new Date().toISOString()
-  })
-  .eq('id', agentId)
-  .select();
-
-if (error) {
-  console.log('❌ Error:', error.message);
-} else {
-  console.log('✅ Agent updated successfully!');
-  console.log('   Agent:', data[0].name);
-  console.log('   API Key:', apiKey.substring(0, 30) + '...');
-  console.log('\n📱 SMS sending is now ENABLED!');
-  console.log('\n🔄 Next test will:');
-  console.log('   1. Receive webhook from GHL');
-  console.log('   2. Generate AI response');
-  console.log('   3. Send SMS back to lead via GHL API ✅');
+if (!newApiKey || newApiKey.length < 20) {
+  console.log('Usage: node update-ghl-api-key.mjs <NEW_API_KEY>');
+  process.exit(1);
 }
 
-console.log('\n');
+console.log('\nUpdating GHL API key...\n');
+
+const { data: currentAgent } = await supabase
+  .from('ai_agents')
+  .select('metadata, ghl_calendar_id')
+  .eq('id', agentId)
+  .single();
+
+const updatedMetadata = {
+  ...(currentAgent.metadata || {}),
+  gohighlevel_api_key: newApiKey
+};
+
+const { error } = await supabase
+  .from('ai_agents')
+  .update({
+    ghl_api_key: newApiKey,
+    metadata: updatedMetadata
+  })
+  .eq('id', agentId);
+
+if (error) {
+  console.log('Error:', error.message);
+  process.exit(1);
+}
+
+console.log('✅ Updated!\n');
+console.log('Testing permissions...\n');
+
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+tomorrow.setHours(0, 0, 0, 0);
+const startDate = tomorrow.getTime();
+const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
+
+const slotsResponse = await fetch(
+  'https://services.leadconnectorhq.com/calendars/' + currentAgent.ghl_calendar_id + '/free-slots?startDate=' + startDate + '&endDate=' + endDate,
+  {
+    headers: {
+      'Authorization': 'Bearer ' + newApiKey,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json',
+    },
+  }
+);
+
+console.log('Read Slots:', slotsResponse.ok ? '✅' : '❌ ' + slotsResponse.status);
+
+const bookResponse = await fetch(
+  'https://services.leadconnectorhq.com/calendars/events/appointments',
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + newApiKey,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      calendarId: currentAgent.ghl_calendar_id,
+      contactId: 'qvCWafwCpdAhVnAbTzWd',
+      startTime: '2099-12-31T10:00:00+00:00',
+      title: 'Test',
+      appointmentStatus: 'confirmed',
+    }),
+  }
+);
+
+console.log('Create Appointments:', bookResponse.ok ? '✅' : '❌ ' + bookResponse.status);
+if (bookResponse.ok) {
+  const data = await bookResponse.json();
+  console.log('Test ID:', data.id, '(DELETE THIS IN GHL!)');
+}
+console.log('');

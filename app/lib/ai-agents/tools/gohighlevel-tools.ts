@@ -247,23 +247,32 @@ export class BookGHLAppointmentTool extends BaseTool {
     appointmentType: string,
     notes?: string,
   ): Promise<any> {
-    // Use GHL v2 API for booking appointments
+    // Get contact details for email/phone (required by v1 API)
+    const supabase = createAdminClient();
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("email, phone")
+      .eq("metadata->>ghl_contact_id", contactId)
+      .single();
+
+    // Use GHL v1 API for booking appointments (location JWT compatible)
     const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars/events/appointments`,
+      `https://rest.gohighlevel.com/v1/appointments`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          Version: "2021-07-28",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           calendarId,
-          contactId,
-          startTime: slot.startTime,
-          title: appointmentType.replace("_", " "),
-          appointmentStatus: "confirmed",
-          notes: notes || `Booked via AI agent`,
+          selectedTimezone: "Europe/London",
+          selectedSlot: slot.startTime,
+          email: lead?.email,
+          phone: lead?.phone,
+          contact: {
+            id: contactId,
+          },
         }),
       },
     );
