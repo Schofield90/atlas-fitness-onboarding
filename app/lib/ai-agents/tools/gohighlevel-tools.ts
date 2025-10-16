@@ -158,9 +158,24 @@ export class BookGHLAppointmentTool extends BaseTool {
         });
 
         if (!selectedSlot) {
-          // Requested time not available - show available alternatives
-          const availableTimes = availableSlots
-            .slice(0, 5) // Show max 5 options
+          // Requested time not available - show ALL available alternatives grouped by time of day
+          // Group slots: Morning (6am-12pm), Afternoon (12pm-5pm), Evening (5pm+)
+          const morningSlots: any[] = [];
+          const afternoonSlots: any[] = [];
+          const eveningSlots: any[] = [];
+
+          availableSlots.forEach(slot => {
+            const hour = new Date(slot.startTime).getHours();
+            if (hour < 12) {
+              morningSlots.push(slot);
+            } else if (hour < 17) {
+              afternoonSlots.push(slot);
+            } else {
+              eveningSlots.push(slot);
+            }
+          });
+
+          const formatSlots = (slots: any[]) => slots
             .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
               hour: '2-digit',
               minute: '2-digit',
@@ -168,14 +183,33 @@ export class BookGHLAppointmentTool extends BaseTool {
             }))
             .join(', ');
 
-          console.log(`[GHL Tool] ❌ Requested time ${parsedTime} not available. Offering alternatives: ${availableTimes}`);
+          // Build comprehensive availability message
+          let message = `Unfortunately ${parsedTime} isn't available on ${parsedDate}.\n\n`;
+
+          if (morningSlots.length > 0) {
+            message += `Morning slots: ${formatSlots(morningSlots)}\n`;
+          }
+          if (afternoonSlots.length > 0) {
+            message += `Afternoon slots: ${formatSlots(afternoonSlots)}\n`;
+          }
+          if (eveningSlots.length > 0) {
+            message += `Evening slots: ${formatSlots(eveningSlots)}\n`;
+          }
+
+          message += `\nWhich time works best for you?`;
+
+          console.log(`[GHL Tool] ❌ Requested time ${parsedTime} not available. Offering ${availableSlots.length} alternatives`);
+          console.log(`[GHL Tool] Morning: ${morningSlots.length}, Afternoon: ${afternoonSlots.length}, Evening: ${eveningSlots.length}`);
 
           return {
             success: false,
             error: `The requested time ${parsedTime} is not available`,
             data: {
-              availableSlots: availableSlots.slice(0, 5),
-              message: `Unfortunately ${parsedTime} isn't available on ${parsedDate}. I have these times free: ${availableTimes}. Which works best for you?`,
+              availableSlots: availableSlots, // Return ALL slots, not just first 5
+              morningSlots,
+              afternoonSlots,
+              eveningSlots,
+              message,
             },
           };
         }
