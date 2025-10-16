@@ -81,10 +81,11 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Fetch agents for this organization using admin client
-    const { data: agents, error: agentsError } = await supabaseAdmin
+    // Fetch GHL lead follow-up agents for this organization using admin client
+    // Only include agents with GoHighLevel integration configured
+    const { data: allAgents, error: agentsError } = await supabaseAdmin
       .from("ai_agents")
-      .select("id, name, organization_id")
+      .select("id, name, organization_id, ghl_api_key, ghl_calendar_id, allowed_tools")
       .eq("organization_id", organizationId)
       .order("name");
 
@@ -92,6 +93,19 @@ export async function GET(request: NextRequest) {
       console.error("[Reports API] Error fetching agents:", agentsError);
       return NextResponse.json({ error: "Failed to fetch agents" }, { status: 500 });
     }
+
+    // Filter for GHL lead agents: must have GHL configuration OR booking tool enabled
+    const agents = (allAgents || []).filter(agent => {
+      const hasGhlApiKey = !!agent.ghl_api_key;
+      const hasGhlCalendar = !!agent.ghl_calendar_id;
+      const hasBookingTool = agent.allowed_tools?.includes('book_ghl_appointment');
+
+      return hasGhlApiKey || hasGhlCalendar || hasBookingTool;
+    }).map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      organization_id: agent.organization_id
+    }));
 
     console.log("[Reports API] Found agents:", {
       organizationId,
