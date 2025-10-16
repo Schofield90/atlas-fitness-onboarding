@@ -136,13 +136,40 @@ export class BookGHLAppointmentTool extends BaseTool {
         };
       }
 
-      // Book the appointment (first available slot if no specific time preference)
-      const selectedSlot = parsedTime
-        ? availableSlots.find((slot) => {
-            const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
-            return slotTime === parsedTime;
-          }) || availableSlots[0]
-        : availableSlots[0];
+      // Find matching slot or return error if specific time not available
+      let selectedSlot;
+
+      if (parsedTime) {
+        // User requested specific time - find exact match
+        selectedSlot = availableSlots.find((slot) => {
+          const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+          return slotTime === parsedTime;
+        });
+
+        if (!selectedSlot) {
+          // Requested time not available - show available alternatives
+          const availableTimes = availableSlots
+            .slice(0, 5) // Show max 5 options
+            .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }))
+            .join(', ');
+
+          return {
+            success: false,
+            error: `The requested time ${parsedTime} is not available`,
+            data: {
+              availableSlots: availableSlots.slice(0, 5),
+              message: `Unfortunately ${parsedTime} isn't available on ${parsedDate}. I have these times free: ${availableTimes}. Which works best for you?`,
+            },
+          };
+        }
+      } else {
+        // No specific time requested - use first available
+        selectedSlot = availableSlots[0];
+      }
 
       const appointment = await this.bookAppointment(
         apiKey,
