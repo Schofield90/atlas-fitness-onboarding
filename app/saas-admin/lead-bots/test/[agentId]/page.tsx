@@ -286,7 +286,7 @@ export default function AgentTestPage() {
 
             {/* View Settings */}
             <button
-              onClick={() => router.push(`/saas-admin/lead-bots/${agentId}`)}
+              onClick={() => router.push(`/saas-admin/lead-bots/agents/${agentId}`)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Settings className="w-4 h-4" />

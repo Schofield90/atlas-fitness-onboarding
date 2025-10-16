@@ -48,13 +48,13 @@ function TestAgentSelectionContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             AI Agent Testing
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-400">
             Select an agent to start a test conversation and provide feedback
           </p>
         </div>
@@ -62,15 +62,15 @@ function TestAgentSelectionContent() {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-            <p className="mt-4 text-gray-600">Loading agents...</p>
+            <p className="mt-4 text-gray-400">Loading agents...</p>
           </div>
         ) : agents.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <ChatBubbleBottomCenterTextIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-12 text-center border border-gray-700">
+            <ChatBubbleBottomCenterTextIcon className="mx-auto h-12 w-12 text-gray-500 mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">
               No agents found
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-400">
               Create an agent in the Agent Config section to start testing
             </p>
           </div>
@@ -79,7 +79,7 @@ function TestAgentSelectionContent() {
             {agents.map((agent) => (
               <div
                 key={agent.id}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
+                className="bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer border border-gray-700 hover:border-gray-600"
                 onClick={() => handleTestAgent(agent.id)}
               >
                 <div className="p-6">
@@ -87,10 +87,10 @@ function TestAgentSelectionContent() {
                     <div className="flex items-center">
                       <SparklesIcon className="h-8 w-8 text-orange-500 mr-3" />
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-white">
                           {agent.name}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-400">
                           {agent.organizationName}
                         </p>
                       </div>
@@ -102,7 +102,7 @@ function TestAgentSelectionContent() {
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                  <p className="text-sm text-gray-400 mb-4 line-clamp-2">
                     {agent.description || "No description provided"}
                   </p>
 
