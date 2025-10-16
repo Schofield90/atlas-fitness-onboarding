@@ -230,8 +230,8 @@ export class BookGHLAppointmentTool extends BaseTool {
     const startDate = dateObj.getTime();
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
 
-    // Use GHL v2 API (services.leadconnectorhq.com)
-    const response = await fetch(
+    // Step 1: Fetch calendar availability windows from GHL
+    const slotsResponse = await fetch(
       `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
       {
         headers: {
@@ -242,28 +242,60 @@ export class BookGHLAppointmentTool extends BaseTool {
       },
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch calendar slots: ${response.statusText} - ${errorText}`);
+    if (!slotsResponse.ok) {
+      const errorText = await slotsResponse.text();
+      throw new Error(`Failed to fetch calendar slots: ${slotsResponse.statusText} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const slotsData = await slotsResponse.json();
 
-    // GHL v2 API returns: { "2025-10-16": { "slots": ["2025-10-16T10:00:00+01:00", ...] } }
-    // Convert to array of { startTime, endTime } objects
-    const slots: Array<{ startTime: string; endTime: string }> = [];
-    for (const [dateKey, dateData] of Object.entries(data)) {
+    // Step 2: Fetch existing appointments for this day to exclude booked slots
+    const appointmentsResponse = await fetch(
+      `https://services.leadconnectorhq.com/calendars/events/appointments?calendarId=${calendarId}&startTime=${startDate}&endTime=${endDate}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Version: "2021-07-28",
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    // Get booked times (may fail if permissions lacking, that's ok - we'll just use free-slots)
+    const bookedTimes = new Set<string>();
+    if (appointmentsResponse.ok) {
+      const appointmentsData = await appointmentsResponse.json();
+      const appointments = appointmentsData.events || appointmentsData.appointments || [];
+
+      appointments.forEach((apt: any) => {
+        if (apt.startTime) {
+          // Normalize to HH:MM format for comparison
+          const bookedTime = new Date(apt.startTime).toTimeString().slice(0, 5);
+          bookedTimes.add(bookedTime);
+        }
+      });
+    }
+
+    // Convert free-slots API response to slot objects
+    const allSlots: Array<{ startTime: string; endTime: string }> = [];
+    for (const [dateKey, dateData] of Object.entries(slotsData)) {
       if (dateKey === "traceId") continue; // Skip metadata
       const slotTimes = (dateData as any).slots || [];
       for (let i = 0; i < slotTimes.length; i++) {
         const startTime = slotTimes[i];
         // Assume 15-minute slots if no end time specified
         const endTime = slotTimes[i + 1] || new Date(new Date(startTime).getTime() + 15 * 60 * 1000).toISOString();
-        slots.push({ startTime, endTime });
+        allSlots.push({ startTime, endTime });
       }
     }
 
-    return slots;
+    // Step 3: Filter out slots that are already booked
+    const availableSlots = allSlots.filter(slot => {
+      const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+      return !bookedTimes.has(slotTime);
+    });
+
+    return availableSlots;
   }
 
   private async bookAppointment(
