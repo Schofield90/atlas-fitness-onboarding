@@ -14,33 +14,78 @@ export async function GET(request: NextRequest) {
 
     const supabaseAdmin = createAdminClient();
 
-    // Try user_organizations first
-    let { data: userOrg } = await supabaseAdmin
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Check if super admin (can see all organizations)
+    const isSuperAdmin = user.email?.endsWith('@gymleadhub.co.uk') ||
+                         user.email?.endsWith('@atlas-gyms.co.uk');
 
-    // Fallback to organization_staff if not found
-    if (!userOrg) {
-      const { data: staffOrg } = await supabaseAdmin
-        .from("organization_staff")
+    let organizationId: string | null = null;
+
+    if (isSuperAdmin) {
+      // Super admins: use first organization they have access to, or query parameter
+      const { searchParams } = new URL(request.url);
+      const orgParam = searchParams.get('org');
+
+      if (orgParam) {
+        organizationId = orgParam;
+      } else {
+        // Get first organization from user_organizations or organization_staff
+        const { data: userOrg } = await supabaseAdmin
+          .from("user_organizations")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (userOrg) {
+          organizationId = userOrg.organization_id;
+        } else {
+          const { data: staffOrg } = await supabaseAdmin
+            .from("organization_staff")
+            .select("organization_id")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (staffOrg) {
+            organizationId = staffOrg.organization_id;
+          }
+        }
+      }
+    } else {
+      // Regular users: check their organization membership
+      let { data: userOrg } = await supabaseAdmin
+        .from("user_organizations")
         .select("organization_id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      userOrg = staffOrg;
+      // Fallback to organization_staff if not found
+      if (!userOrg) {
+        const { data: staffOrg } = await supabaseAdmin
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        userOrg = staffOrg;
+      }
+
+      organizationId = userOrg?.organization_id || null;
     }
 
-    if (!userOrg?.organization_id) {
-      return NextResponse.json({ agents: [] }, { status: 200 });
+    if (!organizationId) {
+      return NextResponse.json({
+        agents: [],
+        organizationId: null,
+        message: "No organization found for user"
+      }, { status: 200 });
     }
 
     // Fetch agents for this organization using admin client
     const { data: agents, error: agentsError } = await supabaseAdmin
       .from("ai_agents")
       .select("id, name, organization_id")
-      .eq("organization_id", userOrg.organization_id)
+      .eq("organization_id", organizationId)
       .order("name");
 
     if (agentsError) {
@@ -48,9 +93,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch agents" }, { status: 500 });
     }
 
+    console.log("[Reports API] Found agents:", {
+      organizationId,
+      agentCount: agents?.length || 0,
+      isSuperAdmin
+    });
+
     return NextResponse.json({
       agents: agents || [],
-      organizationId: userOrg.organization_id
+      organizationId
     });
 
   } catch (error: any) {
