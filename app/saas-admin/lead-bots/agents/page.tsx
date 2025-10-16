@@ -26,6 +26,7 @@ interface AIAgent {
   ghlLocationId?: string;
   ghlApiKey?: string;
   ghlCalendarId?: string;
+  ghlPrivateIntegrationKey?: string;
 }
 
 function AgentsPageContent() {
@@ -79,6 +80,7 @@ function AgentsPageContent() {
             gohighlevel_location_id: editingAgent.ghlLocationId || null,
             gohighlevel_api_key: editingAgent.ghlApiKey || null,
             gohighlevel_calendar_id: editingAgent.ghlCalendarId || null,
+            gohighlevel_private_integration_key: editingAgent.ghlPrivateIntegrationKey || null,
           },
         }),
       });
@@ -388,6 +390,23 @@ function AgentsPageContent() {
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Find in GoHighLevel → Calendars → Click calendar → Copy ID from URL
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Private Integration Key
+                      <span className="ml-2 text-xs text-gray-500 font-normal">(Optional - for sending SMS messages)</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={editingAgent.ghlPrivateIntegrationKey || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, ghlPrivateIntegrationKey: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="OAuth token from Private Integration"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Find in GoHighLevel → Settings → Integrations → Private Integrations → Reconnect
                     </p>
                   </div>
                 </div>

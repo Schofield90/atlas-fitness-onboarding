@@ -310,10 +310,13 @@ export async function POST(
     console.log(`[GHL Webhook] Tokens used: ${agentResponse.assistantMessage?.tokens_used || 0}`);
 
     // 8. Send response back to GoHighLevel via SMS (if API key configured)
-    if (agent.ghl_api_key && contactPhone) {
+    // Prefer private integration key for messaging, fallback to standard API key
+    const messagingApiKey = agent.metadata?.gohighlevel_private_integration_key || agent.ghl_api_key;
+
+    if (messagingApiKey && contactPhone) {
       try {
         await sendSMSToGHL(
-          agent.ghl_api_key,
+          messagingApiKey,
           contactId,
           aiMessage
         );
