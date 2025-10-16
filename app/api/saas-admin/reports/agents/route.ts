@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
     const isSuperAdmin = user.email?.endsWith('@gymleadhub.co.uk') ||
                          user.email?.endsWith('@atlas-gyms.co.uk');
 
+    const { searchParams } = new URL(request.url);
+    const orgParam = searchParams.get('org');
+
     let organizationId: string | null = null;
 
     if (isSuperAdmin) {
-      // Super admins: use first organization they have access to, or query parameter
-      const { searchParams } = new URL(request.url);
-      const orgParam = searchParams.get('org');
-
+      // Super admins: use org param if provided, otherwise first organization
       if (orgParam) {
         organizationId = orgParam;
       } else {

@@ -39,8 +39,15 @@ interface CumulativeReport {
   agents: AgentReport[];
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export default function AgentReportsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
   const [period, setPeriod] = useState<string>("all_time");
   const [individualReport, setIndividualReport] = useState<any>(null);
@@ -49,36 +56,54 @@ export default function AgentReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
 
-  // Fetch organization ID and agents on mount
+  // Fetch organizations on mount
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchOrganizations = async () => {
       try {
-        const response = await fetch("/api/saas-admin/reports/agents");
+        const response = await fetch("/api/auth/user-organizations");
+        if (!response.ok) {
+          console.error("[Reports] Failed to fetch organizations");
+          return;
+        }
+
+        const data = await response.json();
+        console.log("[Reports] Organizations:", data.data.organizations);
+
+        if (data.data.organizations && data.data.organizations.length > 0) {
+          setOrganizations(data.data.organizations);
+          // Set first organization with GHL agents, or just first org
+          setOrganizationId(data.data.organizations[0].id);
+        }
+      } catch (error) {
+        console.error("[Reports] Error fetching organizations:", error);
+      }
+    };
+
+    fetchOrganizations();
+  }, []);
+
+  // Fetch agents when organization changes
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const fetchAgents = async () => {
+      try {
+        const response = await fetch(`/api/saas-admin/reports/agents?org=${organizationId}`);
         if (!response.ok) {
           console.error("[Reports] Failed to fetch agents");
           return;
         }
 
         const data = await response.json();
-        console.log("[Reports] API Response:", {
-          status: response.status,
+        console.log("[Reports] Agents for org:", {
           organizationId: data.organizationId,
           agentsCount: data.agents?.length || 0,
           agents: data.agents
         });
 
-        if (data.organizationId) {
-          setOrganizationId(data.organizationId);
-          console.log("[Reports] Organization ID set:", data.organizationId);
-        } else {
-          console.warn("[Reports] No organizationId in response");
-        }
-
         if (data.agents && data.agents.length > 0) {
-          console.log("[Reports] Setting agents:", data.agents);
           setAgents(data.agents);
         } else {
-          console.warn("[Reports] No agents found in response");
           setAgents([]);
         }
       } catch (error) {
@@ -86,8 +111,10 @@ export default function AgentReportsPage() {
       }
     };
 
-    fetchInitialData();
-  }, []);
+    fetchAgents();
+    // Reset selected agent when organization changes
+    setSelectedAgent("all");
+  }, [organizationId]);
 
   // Fetch report when selections change
   useEffect(() => {
@@ -211,8 +238,26 @@ export default function AgentReportsPage() {
 
         {/* Filters */}
         <div className="bg-gray-800 rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-3 gap-4">
+            {/* Organization Selector (for super admins) */}
+            {organizations.length > 1 && (
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Organization</label>
+                <select
+                  value={organizationId || ""}
+                  onChange={(e) => setOrganizationId(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className={organizations.length > 1 ? "" : "col-span-2"}>
               <label className="block text-sm font-medium mb-2 text-gray-300">Agent</label>
               <select
                 value={selectedAgent}
