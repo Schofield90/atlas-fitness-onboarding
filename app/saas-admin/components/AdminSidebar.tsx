@@ -55,6 +55,12 @@ export default function AdminSidebar({ role = "platform_owner" }: AdminSidebarPr
       indent: true,
     },
     {
+      name: "Test",
+      href: "/saas-admin/lead-bots/test",
+      icon: ChatBubbleBottomCenterTextIcon,
+      indent: true,
+    },
+    {
       name: "Call Bookings",
       href: "/saas-admin/lead-bots/bookings",
       icon: PhoneIcon,
