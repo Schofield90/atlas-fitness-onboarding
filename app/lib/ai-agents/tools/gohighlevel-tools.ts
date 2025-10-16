@@ -113,57 +113,83 @@ export class BookGHLAppointmentTool extends BaseTool {
         };
       }
 
-      // TEMPORARY FIX: Send booking link instead of API booking
-      // Reason: Current GHL API key lacks permissions for appointments endpoint
-      // See: /GHL_CALENDAR_DIAGNOSIS.md for full details
-
-      // Get booking link from agent metadata
-      const bookingLink = agent?.metadata?.gohighlevel_booking_link ||
-                         'https://api.leadconnectorhq.com/widget/bookings/apyork/discoverycall';
-
-      // Parse time for personalized message
-      const parsedTime = this.parseTime(validated.preferredTime);
+      // Parse natural language date to ISO format
       const parsedDate = this.parseDate(validated.preferredDate);
 
-      // Format date for display (e.g., "tomorrow" or "17th October")
-      const dateObj = new Date(parsedDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Parse natural language time to 24-hour format
+      const parsedTime = this.parseTime(validated.preferredTime);
 
-      let dateDisplay;
-      if (dateObj.getTime() === today.getTime()) {
-        dateDisplay = "today";
-      } else if (dateObj.getTime() === tomorrow.getTime()) {
-        dateDisplay = "tomorrow";
-      } else {
-        dateDisplay = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+      // Get available slots from GHL calendar (v2 API already filters booked times)
+      const availableSlots = await this.getAvailableSlots(
+        apiKey,
+        calendarId,
+        parsedDate,
+      );
+
+      if (availableSlots.length === 0) {
+        return {
+          success: false,
+          error: "No available slots found for the requested date",
+          data: {
+            message: "Unfortunately, there are no available slots on that date. Would you like to try a different date?",
+          },
+        };
       }
 
-      // Build personalized message
-      let message = `Perfect! I'd love to get you booked in`;
+      // Find matching slot or return error if specific time not available
+      let selectedSlot;
 
       if (parsedTime) {
-        message += ` for ${parsedTime}`;
+        // User requested specific time - find exact match
+        selectedSlot = availableSlots.find((slot) => {
+          const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+          return slotTime === parsedTime;
+        });
+
+        if (!selectedSlot) {
+          // Requested time not available - show available alternatives
+          const availableTimes = availableSlots
+            .slice(0, 5) // Show max 5 options
+            .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }))
+            .join(', ');
+
+          return {
+            success: false,
+            error: `The requested time ${parsedTime} is not available`,
+            data: {
+              availableSlots: availableSlots.slice(0, 5),
+              message: `Unfortunately ${parsedTime} isn't available on ${parsedDate}. I have these times free: ${availableTimes}. Which works best for you?`,
+            },
+          };
+        }
+      } else {
+        // No specific time requested - use first available
+        selectedSlot = availableSlots[0];
       }
 
-      if (parsedDate) {
-        message += ` on ${dateDisplay}`;
-      }
+      // Book appointment via GHL v1 API
+      const appointment = await this.bookAppointment(
+        apiKey,
+        calendarId,
+        contactId,
+        selectedSlot,
+        validated.appointmentType,
+        validated.notes,
+      );
 
-      message += `. Click this link to book your call and you'll see my real-time availability:\n\n${bookingLink}\n\nThis will show you all available times and let you choose what works best for you!`;
-
-      // Update lead status to indicate booking link sent
+      // Update lead in our system
       await supabase
         .from("leads")
         .update({
-          status: "booking_link_sent",
+          status: "appointment_scheduled",
           metadata: {
-            ...lead?.metadata,
-            booking_link_sent_at: new Date().toISOString(),
-            requested_time: parsedTime,
-            requested_date: parsedDate,
+            ghl_appointment_id: appointment.id,
+            appointment_date: selectedSlot.startTime,
+            appointment_type: validated.appointmentType,
           },
         })
         .eq("metadata->>ghl_contact_id", contactId);
@@ -171,14 +197,14 @@ export class BookGHLAppointmentTool extends BaseTool {
       return {
         success: true,
         data: {
-          bookingLink,
-          requestedTime: parsedTime,
-          requestedDate: parsedDate,
-          confirmationMessage: message,
+          appointmentId: appointment.id,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          appointmentType: validated.appointmentType,
+          confirmationMessage: `Great! I've booked your ${validated.appointmentType.replace("_", " ")} for ${this.formatDateTime(selectedSlot.startTime)}. You'll receive a confirmation email shortly. Looking forward to seeing you!`,
         },
         metadata: {
           executionTimeMs: Date.now() - startTime,
-          method: "booking_link", // Track that we used link method
         },
       };
     } catch (error: any) {
@@ -205,8 +231,9 @@ export class BookGHLAppointmentTool extends BaseTool {
     const startDate = dateObj.getTime();
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
 
-    // Step 1: Fetch calendar availability windows from GHL
-    const slotsResponse = await fetch(
+    // Fetch available slots from GHL v2 API
+    // NOTE: This endpoint automatically filters out already-booked appointments
+    const response = await fetch(
       `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
       {
         headers: {
@@ -217,42 +244,15 @@ export class BookGHLAppointmentTool extends BaseTool {
       },
     );
 
-    if (!slotsResponse.ok) {
-      const errorText = await slotsResponse.text();
-      throw new Error(`Failed to fetch calendar slots: ${slotsResponse.statusText} - ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch calendar slots: ${response.statusText} - ${errorText}`);
     }
 
-    const slotsData = await slotsResponse.json();
+    const slotsData = await response.json();
 
-    // Step 2: Fetch existing appointments for this day to exclude booked slots
-    const appointmentsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/events/appointments?calendarId=${calendarId}&startTime=${startDate}&endTime=${endDate}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Version: "2021-07-28",
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    // Get booked times (may fail if permissions lacking, that's ok - we'll just use free-slots)
-    const bookedTimes = new Set<string>();
-    if (appointmentsResponse.ok) {
-      const appointmentsData = await appointmentsResponse.json();
-      const appointments = appointmentsData.events || appointmentsData.appointments || [];
-
-      appointments.forEach((apt: any) => {
-        if (apt.startTime) {
-          // Normalize to HH:MM format for comparison
-          const bookedTime = new Date(apt.startTime).toTimeString().slice(0, 5);
-          bookedTimes.add(bookedTime);
-        }
-      });
-    }
-
-    // Convert free-slots API response to slot objects
-    const allSlots: Array<{ startTime: string; endTime: string }> = [];
+    // Convert API response to slot objects
+    const availableSlots: Array<{ startTime: string; endTime: string }> = [];
     for (const [dateKey, dateData] of Object.entries(slotsData)) {
       if (dateKey === "traceId") continue; // Skip metadata
       const slotTimes = (dateData as any).slots || [];
@@ -260,15 +260,9 @@ export class BookGHLAppointmentTool extends BaseTool {
         const startTime = slotTimes[i];
         // Assume 15-minute slots if no end time specified
         const endTime = slotTimes[i + 1] || new Date(new Date(startTime).getTime() + 15 * 60 * 1000).toISOString();
-        allSlots.push({ startTime, endTime });
+        availableSlots.push({ startTime, endTime });
       }
     }
-
-    // Step 3: Filter out slots that are already booked
-    const availableSlots = allSlots.filter(slot => {
-      const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
-      return !bookedTimes.has(slotTime);
-    });
 
     return availableSlots;
   }
