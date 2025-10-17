@@ -9,6 +9,7 @@ import { AnthropicProvider } from './providers/anthropic-provider';
 import { ToolRegistry } from './tools/registry';
 import { calculateCost, logAIUsage, type CostCalculation } from './cost-tracker';
 import { checkGlobalRateLimit, checkOrgRateLimit, checkAgentRateLimit } from './rate-limiter';
+import { addSelfDebugInstructions } from './self-debug';
 
 export interface AgentTask {
   id: string;
@@ -85,6 +86,160 @@ export interface ExecuteMessageResult {
 export class AgentOrchestrator {
   private supabase = createAdminClient();
   private toolRegistry = new ToolRegistry();
+
+  /**
+   * Load agent's system prompt with appended SOPs (Standard Operating Procedures) and self-debug instructions
+   */
+  private async loadAgentSystemPrompt(agentId: string, basePrompt: string, agentMetadata?: any): Promise<string> {
+    try {
+      // Fetch SOPs linked to this agent via agent_sops junction table
+      const { data: agentSops, error: sopsError } = await this.supabase
+        .from('agent_sops')
+        .select(`
+          sop_id,
+          sort_order,
+          sop:sops(*)
+        `)
+        .eq('agent_id', agentId)
+        .order('sort_order', { ascending: true });
+
+      let promptWithSops = basePrompt;
+
+      // Add metadata context if available
+      if (agentMetadata) {
+        const metadataSection = `
+
+## AVAILABLE CONTEXT & INFORMATION
+
+You have access to the following information about your gym:
+
+- **Gym Name**: ${agentMetadata.gym_name || 'Not set'}
+- **Location**: ${agentMetadata.location || 'Not set'}
+- **Address**: ${agentMetadata.gym_address || 'Not set'}
+- **Lead Chaser Name**: ${agentMetadata.lead_chaser_name || 'Not set'}
+
+Use this information when answering questions about the gym, its location, or when the lead asks "where are you based?"`;
+
+        promptWithSops = `${basePrompt}${metadataSection}`;
+      }
+
+      if (!sopsError && agentSops && agentSops.length > 0) {
+        // Process SOPs based on strictness level
+        const exactScripts: Array<{name: string, content: string}> = [];
+        const guidelines: string[] = [];
+        const generalTones: string[] = [];
+
+        agentSops.forEach((item: any) => {
+          const sop = item.sop;
+          if (!sop?.content) return;
+
+          const strictness = sop.strictness_level || 'guideline';
+
+          if (strictness === 'exact_script') {
+            exactScripts.push({
+              name: sop.name,
+              content: sop.content
+            });
+          } else if (strictness === 'guideline') {
+            guidelines.push(sop.content);
+          } else if (strictness === 'general_tone') {
+            generalTones.push(sop.content);
+          }
+        });
+
+        let sopSection = '';
+
+        // Add EXACT SCRIPTS with clear XML structure and examples
+        if (exactScripts.length > 0) {
+          sopSection += `
+<message_templates>
+These are EXACT message templates. You must copy them word-for-word, only replacing placeholders in [brackets].
+
+<template_rules>
+1. Count how many messages YOU have sent in this conversation (not the lead's messages)
+2. For YOUR FIRST message: use the "First message to a new lead" template
+3. For YOUR SECOND message: use the "Second message" template
+4. For YOUR THIRD message: use the "Third message" template
+5. Copy the template EXACTLY, only replacing [lead name], [gym name], [location], etc.
+6. Do NOT add extra words, explanations, or change any wording
+</template_rules>
+
+<examples>
+<example>
+<template>Thanks [lead name], and what is your main goal is it more fitness or fat loss?</template>
+<lead_name>Sarah</lead_name>
+<your_response>Thanks Sarah, and what is your main goal is it more fitness or fat loss?</your_response>
+</example>
+
+<example>
+<template>Hey [lead name]
+
+Its [lead chaser name] at [gym name], just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of [location]?
+
+[lead chaser name]
+[gym name]</template>
+<lead_name>Mike</lead_name>
+<gym_name>Aimee's Place</gym_name>
+<location>York</location>
+<lead_chaser_name>Sam</lead_chaser_name>
+<your_response>Hey Mike
+
+Its Sam at Aimee's Place, just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of York?
+
+Sam
+Aimee's Place</your_response>
+</example>
+</examples>
+
+<templates>
+${exactScripts.map((script, index) => `<template id="${index + 1}" message_number="${index === 0 ? 'first' : index === 1 ? 'second' : 'third'}">
+<name>${script.name}</name>
+<text>${script.content}</text>
+</template>`).join('\n\n')}
+</templates>
+</message_templates>
+
+`;
+        }
+
+        // Add GUIDELINES
+        if (guidelines.length > 0) {
+          sopSection += `
+## GUIDELINES
+
+Follow these procedures closely but adapt to the conversation context:
+
+${guidelines.join('\n\n---\n\n')}
+
+`;
+        }
+
+        // Add GENERAL TONE
+        if (generalTones.length > 0) {
+          sopSection += `
+## GENERAL TONE & STYLE
+
+Use these as general guidance for your responses:
+
+${generalTones.join('\n\n---\n\n')}
+
+`;
+        }
+
+        // Append SOPs to base prompt
+        promptWithSops = `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\n${sopSection}`;
+      }
+
+      // Add self-debugging instructions to prevent hallucinations
+      const finalPrompt = addSelfDebugInstructions(promptWithSops);
+
+      return finalPrompt;
+    } catch (error) {
+      console.error('[Orchestrator] Error loading SOPs:', error);
+      // If SOP loading fails, still add self-debug instructions to base prompt
+      return addSelfDebugInstructions(basePrompt);
+    }
+  }
 
   /**
    * Execute a conversation message with an AI agent
@@ -206,133 +361,7 @@ ${agent.system_prompt}`;
       // Reverse to chronological order (oldest first) for provider execution
       const messages = (messageHistory || []).reverse();
 
-      // 3a. CHECK FOR EXACT SCRIPT TEMPLATES (bypass Claude if template should be used)
-      // Count how many assistant messages exist (to determine which template to use)
-      const assistantMessageCount = messages.filter(m => m.role === 'assistant').length;
-
-      console.log(`[Orchestrator] 🔍 Template bypass check: assistantMessageCount=${assistantMessageCount}`);
-
-      // Get agent's exact script SOPs
-      const { data: exactScriptSops } = await this.supabase
-        .from('agent_sops')
-        .select(`
-          sop_id,
-          sort_order,
-          sop:sops!inner(id, name, content, strictness_level)
-        `)
-        .eq('agent_id', agent.id)
-        .eq('sop.strictness_level', 'exact_script')
-        .order('sort_order', { ascending: true });
-
-      console.log(`[Orchestrator] 🔍 Found ${exactScriptSops?.length || 0} exact_script SOPs`);
-      if (exactScriptSops && exactScriptSops.length > 0) {
-        console.log(`[Orchestrator] 🔍 SOP names:`, exactScriptSops.map(s => s.sop?.name));
-      }
-
-      // Check if we should use an exact template (1st, 2nd, or 3rd assistant message)
-      if (exactScriptSops && exactScriptSops.length > 0 && assistantMessageCount < 3) {
-        const templateIndex = assistantMessageCount; // 0 = first, 1 = second, 2 = third
-        const templateSop = exactScriptSops[templateIndex];
-
-        if (templateSop && templateSop.sop) {
-          console.log(`[Orchestrator] 🎯 Using exact template #${templateIndex + 1}: "${templateSop.sop.name}"`);
-          console.log(`[Orchestrator] Bypassing Claude to ensure exact template adherence`);
-
-          // Replace placeholders in template
-          let templateContent = templateSop.sop.content;
-
-          // Extract lead name from conversation metadata or recent messages
-          let leadName = 'there'; // default fallback
-          if (conversation.metadata?.lead_name) {
-            leadName = conversation.metadata.lead_name;
-          } else {
-            // Try to extract from recent user messages
-            const recentUserMsg = messages.filter(m => m.role === 'user').slice(-1)[0];
-            if (recentUserMsg?.content) {
-              // Simple name extraction (you can enhance this)
-              const nameMatch = recentUserMsg.content.match(/(?:my name is|i'm|i am)\s+(\w+)/i);
-              if (nameMatch) {
-                leadName = nameMatch[1];
-              }
-            }
-          }
-
-          // Get metadata values for placeholders
-          const gymName = agent.metadata?.gym_name || agent.name || 'our gym';
-          const location = agent.metadata?.location || 'your area';
-          const leadChaserName = agent.metadata?.lead_chaser_name || 'our team';
-
-          // Replace all placeholders
-          templateContent = templateContent
-            .replace(/\[lead name\]/gi, leadName)
-            .replace(/\[gym name\]/gi, gymName)
-            .replace(/\[location\]/gi, location)
-            .replace(/\[lead chaser name\]/gi, leadChaserName);
-
-          console.log(`[Orchestrator] Template after replacements: "${templateContent.substring(0, 100)}..."`);
-
-          // Save assistant message with template content (no AI call needed)
-          const { data: assistantMsg, error: assistantMsgError } =
-            await this.supabase
-              .from("ai_agent_messages")
-              .insert({
-                conversation_id: conversationId,
-                role: "assistant",
-                content: templateContent,
-                tool_calls: null,
-                tool_results: null,
-                tokens_used: 0, // No tokens used (template bypass)
-                cost_usd: 0, // No cost (template bypass)
-                model: agent.model,
-                metadata: {
-                  template_used: true,
-                  template_name: templateSop.sop.name,
-                  template_index: templateIndex + 1,
-                },
-              })
-              .select()
-              .single();
-
-          if (assistantMsgError || !assistantMsg) {
-            return {
-              success: false,
-              error: "Failed to save template message",
-              cost: this.emptyCost(),
-            };
-          }
-
-          // Update conversation stats (no tokens/cost since we bypassed Claude)
-          await this.supabase
-            .from("ai_agent_conversations")
-            .update({
-              last_message_at: new Date().toISOString(),
-              message_count: (conversation.message_count || 0) + 2,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", conversationId);
-
-          return {
-            success: true,
-            userMessage: {
-              id: userMsg.id,
-              role: "user",
-              content: userMsg.content || "",
-              created_at: userMsg.created_at,
-            },
-            assistantMessage: {
-              id: assistantMsg.id,
-              role: "assistant",
-              content: assistantMsg.content || "",
-              tool_calls: assistantMsg.tool_calls,
-              tokens_used: assistantMsg.tokens_used || 0,
-              created_at: assistantMsg.created_at,
-            },
-            cost: this.emptyCost(),
-          };
-        }
-      }
-
-      // 4. Get allowed tools for agent
+      // 3a. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
       console.log('[Orchestrator] Agent allowed_tools:', allowedTools);
 
@@ -512,8 +541,11 @@ ${agent.system_prompt}`;
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
+    // Load system prompt with SOPs and metadata
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.metadata);
+
     // Filter message history to remove incomplete tool call sequences
-    // If an assistant message has tool_calls, we need following tool messages
+    // If an assistant message with tool_calls, we need following tool messages
     const filteredHistory: any[] = [];
     for (let i = 0; i < messageHistory.length; i++) {
       const msg = messageHistory[i];
@@ -542,7 +574,7 @@ ${agent.system_prompt}`;
     }
 
     const messages: any[] = [
-      { role: "system" as const, content: agent.system_prompt },
+      { role: "system" as const, content: systemPrompt },
       ...filteredHistory.map((msg) => ({
         role: msg.role as "user" | "assistant" | "system" | "tool",
         content: msg.content || null,
@@ -742,6 +774,9 @@ ${agent.system_prompt}`;
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
+    // Load system prompt with SOPs and metadata
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.metadata);
+
     const messages: any[] = messageHistory
       .filter((msg) => msg.role !== "system")
       .map((msg) => {
@@ -772,7 +807,7 @@ ${agent.system_prompt}`;
         model: agent.model,
         temperature: agent.temperature ?? 0.7,
         max_tokens: agent.max_tokens ?? 4096,
-        system: agent.system_prompt,
+        system: systemPrompt,
         tools: tools.length > 0 ? tools : undefined,
       });
 

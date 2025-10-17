@@ -328,6 +328,8 @@ ${generalTones.join('\n\n---\n\n')}
       // Count how many assistant messages exist (to determine which template to use)
       const assistantMessageCount = messages.filter(m => m.role === 'assistant').length;
 
+      console.log(`[Orchestrator] 🔍 Template bypass check: assistantMessageCount=${assistantMessageCount}`);
+
       // Get agent's exact script SOPs
       const { data: exactScriptSops } = await this.supabase
         .from('agent_sops')
@@ -339,6 +341,11 @@ ${generalTones.join('\n\n---\n\n')}
         .eq('agent_id', agent.id)
         .eq('sop.strictness_level', 'exact_script')
         .order('sort_order', { ascending: true });
+
+      console.log(`[Orchestrator] 🔍 Found ${exactScriptSops?.length || 0} exact_script SOPs`);
+      if (exactScriptSops && exactScriptSops.length > 0) {
+        console.log(`[Orchestrator] 🔍 SOP names:`, exactScriptSops.map(s => s.sop?.name));
+      }
 
       // Check if we should use an exact template (1st, 2nd, or 3rd assistant message)
       if (exactScriptSops && exactScriptSops.length > 0 && assistantMessageCount < 3) {

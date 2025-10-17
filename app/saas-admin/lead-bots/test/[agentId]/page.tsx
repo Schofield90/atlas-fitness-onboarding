@@ -52,6 +52,11 @@ export default function AgentTestPage() {
   const [feedbackMessageId, setFeedbackMessageId] = useState<string | null>(null);
   const [feedbackNotes, setFeedbackNotes] = useState("");
 
+  // Booking times checker
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingSlots, setBookingSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -340,6 +345,40 @@ export default function AgentTestPage() {
     }
   };
 
+  const checkBookingTimes = async () => {
+    setShowBookingModal(true);
+    setLoadingSlots(true);
+
+    try {
+      // Get next 4 days starting tomorrow
+      const dates = [];
+      for (let i = 1; i <= 4; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+
+      // Fetch availability for each date
+      const results = await Promise.all(
+        dates.map(async (date) => {
+          const response = await fetch(`/api/ai-agents/${agentId}/check-availability`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date }),
+          });
+          const data = await response.json();
+          return { date, ...data };
+        })
+      );
+
+      setBookingSlots(results);
+    } catch (error) {
+      console.error('Error checking booking times:', error);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-900">
       {/* Header */}
@@ -382,6 +421,15 @@ export default function AgentTestPage() {
             >
               <MessageSquare className="w-4 h-4" />
               Simulate New Lead
+            </button>
+
+            {/* Check Booking Times */}
+            <button
+              onClick={checkBookingTimes}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Check Booking Times
             </button>
 
             {/* Clear Session */}
@@ -605,6 +653,104 @@ export default function AgentTestPage() {
           </div>
         )}
       </div>
+
+      {/* Booking Times Modal */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowBookingModal(false)}>
+          <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">GHL Calendar Availability</h2>
+              <button
+                onClick={() => setShowBookingModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {loadingSlots ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                <span className="ml-3 text-gray-300">Loading availability from GoHighLevel...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {bookingSlots.map((day) => {
+                  const date = new Date(day.date);
+                  const dayName = date.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
+
+                  return (
+                    <div key={day.date} className="border border-gray-700 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-white mb-4">{dayName}</h3>
+
+                      {day.success ? (
+                        <>
+                          {day.data?.totalSlots > 0 ? (
+                            <div className="grid grid-cols-3 gap-4">
+                              {/* Morning Slots */}
+                              {day.data.morningSlots?.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-300 mb-2">☀️ Morning</h4>
+                                  <div className="space-y-1">
+                                    {day.data.morningSlots.map((slot: any, idx: number) => (
+                                      <div key={idx} className="text-sm bg-gray-700 text-gray-200 rounded px-3 py-2">
+                                        {slot.time}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Afternoon Slots */}
+                              {day.data.afternoonSlots?.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-300 mb-2">🌤️ Afternoon</h4>
+                                  <div className="space-y-1">
+                                    {day.data.afternoonSlots.map((slot: any, idx: number) => (
+                                      <div key={idx} className="text-sm bg-gray-700 text-gray-200 rounded px-3 py-2">
+                                        {slot.time}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evening Slots */}
+                              {day.data.eveningSlots?.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-300 mb-2">🌙 Evening</h4>
+                                  <div className="space-y-1">
+                                    {day.data.eveningSlots.map((slot: any, idx: number) => (
+                                      <div key={idx} className="text-sm bg-gray-700 text-gray-200 rounded px-3 py-2">
+                                        {slot.time}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-gray-400 italic">No available slots</p>
+                          )}
+
+                          <p className="text-sm text-gray-500 mt-3">
+                            Total: {day.data?.totalSlots || 0} slot{day.data?.totalSlots !== 1 ? 's' : ''}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 text-red-400">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-sm">{day.error || 'Failed to load availability'}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
