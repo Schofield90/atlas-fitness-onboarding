@@ -136,6 +136,8 @@ export default function AgentTestPage() {
             test_session: true,
             debug_mode: debugMode,
             simulated_lead: true,
+            lead_name: "Sam", // ✅ REQUIRED for template placeholders (matches GHL webhook behavior)
+            full_name: "Sam Schofield",
           },
         }),
       });
