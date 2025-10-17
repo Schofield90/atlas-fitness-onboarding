@@ -16,6 +16,7 @@ interface SOP {
   name: string;
   description?: string;
   content: string;
+  strictness_level?: 'exact_script' | 'guideline' | 'general_tone';
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +33,7 @@ export default function SOPsPage() {
     name: "",
     description: "",
     content: "",
+    strictness_level: "guideline" as 'exact_script' | 'guideline' | 'general_tone',
   });
 
   // Fetch SOPs on mount
@@ -56,7 +58,12 @@ export default function SOPsPage() {
 
   function handleCreate() {
     setEditingSOP(null);
-    setFormData({ name: "", description: "", content: "" });
+    setFormData({
+      name: "",
+      description: "",
+      content: "",
+      strictness_level: "guideline"
+    });
     setShowModal(true);
   }
 
@@ -66,6 +73,7 @@ export default function SOPsPage() {
       name: sop.name,
       description: sop.description || "",
       content: sop.content,
+      strictness_level: sop.strictness_level || "guideline",
     });
     setShowModal(true);
   }
@@ -85,6 +93,7 @@ export default function SOPsPage() {
         name: formData.name,
         description: formData.description,
         content: formData.content,
+        strictness_level: formData.strictness_level,
       };
 
       let response;
@@ -209,7 +218,31 @@ export default function SOPsPage() {
               className="bg-gray-800 rounded-lg border border-gray-700 p-6 hover:border-blue-500 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white">{sop.name}</h3>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-2">{sop.name}</h3>
+                  <div className="inline-flex">
+                    {sop.strictness_level === 'exact_script' && (
+                      <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs font-medium">
+                        📜 Exact Script
+                      </span>
+                    )}
+                    {sop.strictness_level === 'guideline' && (
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs font-medium">
+                        📋 Guideline
+                      </span>
+                    )}
+                    {sop.strictness_level === 'general_tone' && (
+                      <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-medium">
+                        💡 General Tone
+                      </span>
+                    )}
+                    {!sop.strictness_level && (
+                      <span className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs font-medium">
+                        📋 Guideline (default)
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(sop)}
@@ -288,6 +321,40 @@ export default function SOPsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Strictness Level *
+                </label>
+                <select
+                  value={formData.strictness_level}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      strictness_level: e.target.value as 'exact_script' | 'guideline' | 'general_tone'
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="exact_script">
+                    📜 Exact Script - Copy word-for-word (for message templates)
+                  </option>
+                  <option value="guideline">
+                    📋 Guideline - Follow closely but allow adaptation
+                  </option>
+                  <option value="general_tone">
+                    💡 General Tone - Use as general guidance only
+                  </option>
+                </select>
+                <p className="text-xs text-gray-400 mt-2">
+                  <strong>Exact Script:</strong> AI will copy the template exactly (use for first/second/third message templates)
+                  <br />
+                  <strong>Guideline:</strong> AI will follow closely but adapt to context (use for pricing/booking flows)
+                  <br />
+                  <strong>General Tone:</strong> AI will use as general guidance (use for tone/style rules)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Content *
                 </label>
                 <textarea
@@ -310,7 +377,12 @@ export default function SOPsPage() {
                   type="button"
                   onClick={() => {
                     setShowModal(false);
-                    setFormData({ name: "", description: "", content: "" });
+                    setFormData({
+                      name: "",
+                      description: "",
+                      content: "",
+                      strictness_level: "guideline"
+                    });
                     setEditingSOP(null);
                   }}
                   className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"

@@ -126,14 +126,110 @@ export class AgentOrchestrator {
       let promptWithSops = basePrompt;
 
       if (!sopsError && agentSops && agentSops.length > 0) {
-        // Concatenate SOPs in order
-        const sopContents = agentSops
-          .map((item: any) => item.sop?.content)
-          .filter(Boolean)
-          .join('\n\n---\n\n');
+        // Process SOPs based on strictness level
+        const exactScripts: Array<{name: string, content: string}> = [];
+        const guidelines: string[] = [];
+        const generalTones: string[] = [];
+
+        agentSops.forEach((item: any) => {
+          const sop = item.sop;
+          if (!sop?.content) return;
+
+          const strictness = sop.strictness_level || 'guideline';
+
+          if (strictness === 'exact_script') {
+            exactScripts.push({
+              name: sop.name,
+              content: sop.content
+            });
+          } else if (strictness === 'guideline') {
+            guidelines.push(sop.content);
+          } else if (strictness === 'general_tone') {
+            generalTones.push(sop.content);
+          }
+        });
+
+        let sopSection = '';
+
+        // Add EXACT SCRIPTS with clear XML structure and examples
+        if (exactScripts.length > 0) {
+          sopSection += `
+<message_templates>
+These are EXACT message templates. You must copy them word-for-word, only replacing placeholders in [brackets].
+
+<template_rules>
+1. Count how many messages YOU have sent in this conversation (not the lead's messages)
+2. For YOUR FIRST message: use the "First message to a new lead" template
+3. For YOUR SECOND message: use the "Second message" template
+4. For YOUR THIRD message: use the "Third message" template
+5. Copy the template EXACTLY, only replacing [lead name], [gym name], [location], etc.
+6. Do NOT add extra words, explanations, or change any wording
+</template_rules>
+
+<examples>
+<example>
+<template>Thanks [lead name], and what is your main goal is it more fitness or fat loss?</template>
+<lead_name>Sarah</lead_name>
+<your_response>Thanks Sarah, and what is your main goal is it more fitness or fat loss?</your_response>
+</example>
+
+<example>
+<template>Hey [lead name]
+
+Its [lead chaser name] at [gym name], just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of [location]?
+
+[lead chaser name]
+[gym name]</template>
+<lead_name>Mike</lead_name>
+<gym_name>Aimee's Place</gym_name>
+<location>York</location>
+<lead_chaser_name>Sam</lead_chaser_name>
+<your_response>Hey Mike
+
+Its Sam at Aimee's Place, just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of York?
+
+Sam
+Aimee's Place</your_response>
+</example>
+</examples>
+
+<templates>
+${exactScripts.map((script, index) => `<template id="${index + 1}" message_number="${index === 0 ? 'first' : index === 1 ? 'second' : 'third'}">
+<name>${script.name}</name>
+<text>${script.content}</text>
+</template>`).join('\n\n')}
+</templates>
+</message_templates>
+
+`;
+        }
+
+        // Add GUIDELINES
+        if (guidelines.length > 0) {
+          sopSection += `
+## GUIDELINES
+
+Follow these procedures closely but adapt to the conversation context:
+
+${guidelines.join('\n\n---\n\n')}
+
+`;
+        }
+
+        // Add GENERAL TONE
+        if (generalTones.length > 0) {
+          sopSection += `
+## GENERAL TONE & STYLE
+
+Use these as general guidance for your responses:
+
+${generalTones.join('\n\n---\n\n')}
+
+`;
+        }
 
         // Append SOPs to base prompt
-        promptWithSops = `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\nFollow these procedures when responding to leads:\n\n${sopContents}`;
+        promptWithSops = `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\n${sopSection}`;
       }
 
       // Add self-debugging instructions to prevent hallucinations (NEW)
@@ -227,6 +323,112 @@ export class AgentOrchestrator {
 
       // Reverse to chronological order (oldest first) for provider execution
       const messages = (messageHistory || []).reverse();
+
+      // 3a. CHECK FOR EXACT SCRIPT TEMPLATES (bypass Claude if template should be used)
+      // Count how many assistant messages exist (to determine which template to use)
+      const assistantMessageCount = messages.filter(m => m.role === 'assistant').length;
+
+      // Get agent's exact script SOPs
+      const { data: exactScriptSops } = await this.supabase
+        .from('agent_sops')
+        .select(`
+          sop_id,
+          sort_order,
+          sop:sops!inner(id, name, content, strictness_level)
+        `)
+        .eq('agent_id', agent.id)
+        .eq('sop.strictness_level', 'exact_script')
+        .order('sort_order', { ascending: true });
+
+      // Check if we should use an exact template (1st, 2nd, or 3rd assistant message)
+      if (exactScriptSops && exactScriptSops.length > 0 && assistantMessageCount < 3) {
+        const templateIndex = assistantMessageCount; // 0 = first, 1 = second, 2 = third
+        const templateSop = exactScriptSops[templateIndex];
+
+        if (templateSop && templateSop.sop) {
+          console.log(`[Orchestrator] 🎯 Using exact template #${templateIndex + 1}: "${templateSop.sop.name}"`);
+          console.log(`[Orchestrator] Bypassing Claude to ensure exact template adherence`);
+
+          // Replace placeholders in template
+          let templateContent = templateSop.sop.content;
+
+          // Extract lead name from conversation metadata or recent messages
+          let leadName = 'there'; // default fallback
+          if (conversation.metadata?.lead_name) {
+            leadName = conversation.metadata.lead_name;
+          } else {
+            // Try to extract from recent user messages
+            const recentUserMsg = messages.filter(m => m.role === 'user').slice(-1)[0];
+            if (recentUserMsg?.content) {
+              // Simple name extraction (you can enhance this)
+              const nameMatch = recentUserMsg.content.match(/(?:my name is|i'm|i am)\s+(\w+)/i);
+              if (nameMatch) {
+                leadName = nameMatch[1];
+              }
+            }
+          }
+
+          // Get metadata values for placeholders
+          const gymName = agent.metadata?.gym_name || agent.name || 'our gym';
+          const location = agent.metadata?.location || 'your area';
+          const leadChaserName = agent.metadata?.lead_chaser_name || 'our team';
+
+          // Replace all placeholders
+          templateContent = templateContent
+            .replace(/\[lead name\]/gi, leadName)
+            .replace(/\[gym name\]/gi, gymName)
+            .replace(/\[location\]/gi, location)
+            .replace(/\[lead chaser name\]/gi, leadChaserName);
+
+          console.log(`[Orchestrator] Template after replacements: "${templateContent.substring(0, 100)}..."`);
+
+          // Save assistant message with template content (no AI call needed)
+          const { data: assistantMsg, error: assistantMsgError } =
+            await this.supabase
+              .from("ai_agent_messages")
+              .insert({
+                conversation_id: conversationId,
+                role: "assistant",
+                content: templateContent,
+                tool_calls: null,
+                tool_results: null,
+                tokens_used: 0, // No tokens used (template bypass)
+                cost_usd: 0, // No cost (template bypass)
+                model: agent.model,
+                metadata: {
+                  template_used: true,
+                  template_name: templateSop.sop.name,
+                  template_index: templateIndex + 1,
+                },
+              })
+              .select()
+              .single();
+
+          if (assistantMsgError || !assistantMsg) {
+            return {
+              success: false,
+              error: "Failed to save template message",
+              cost: this.emptyCost(),
+            };
+          }
+
+          // Update conversation stats (no tokens/cost since we bypassed Claude)
+          await this.supabase
+            .from("ai_agent_conversations")
+            .update({
+              last_message_at: new Date().toISOString(),
+              message_count: (conversation.message_count || 0) + 2,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", conversationId);
+
+          return {
+            success: true,
+            message: assistantMsg,
+            cost: this.emptyCost(),
+          };
+        }
+      }
 
       // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
@@ -483,6 +685,13 @@ export class AgentOrchestrator {
 
     // Load system prompt with SOPs appended
     const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+
+    // DEBUG: Log the system prompt to verify exact scripts are being included
+    console.log('[DEBUG] System prompt length:', systemPrompt.length);
+    console.log('[DEBUG] System prompt preview (first 2000 chars):');
+    console.log(systemPrompt.substring(0, 2000));
+    console.log('[DEBUG] Contains exact script header:', systemPrompt.includes('🚨🚨🚨 ABSOLUTE REQUIREMENT'));
+    console.log('[DEBUG] Contains second message template:', systemPrompt.includes('Thanks [lead name], and what is your main goal'));
 
     const messages = messageHistory
       .filter((msg) => msg.role !== "system")

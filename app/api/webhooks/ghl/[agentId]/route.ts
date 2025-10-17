@@ -202,6 +202,9 @@ export async function POST(
     let conversationId = existingConversation?.id;
 
     if (!existingConversation) {
+      // Extract first name from full name for template personalization
+      const firstName = contactName.split(' ')[0] || contactName;
+
       const { data: newConversation, error: convError } = await supabase
         .from("ai_agent_conversations")
         .insert({
@@ -214,6 +217,8 @@ export async function POST(
             ghl_contact_id: contactId,
             ghl_location_id: payload.location?.id,
             ghl_workflow: payload.workflow,
+            lead_name: firstName, // For exact template placeholders
+            full_name: contactName,
           },
         })
         .select()

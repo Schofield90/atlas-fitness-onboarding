@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('admin login flow should work without redirect loop', async ({ page }) => {
   // Navigate to signin page
-  await page.goto('http://localhost:3001/signin');
+  await page.goto('http://localhost:3000/signin');
 
   // Fill in login credentials
   await page.fill('input[type="email"]', 'sam@gymleadhub.co.uk');

@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     let sopUpdated = false;
     let updatedPrompt = agent.system_prompt;
 
-    // If negative feedback or needs improvement, update SOP using AI
+    // If negative feedback or needs improvement, update SOPs using AI
     if (updateSOP && (feedback === "negative" || feedback === "needs_improvement")) {
       try {
         // Check if OpenAI API key is available
@@ -79,9 +79,30 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Get agent's linked SOPs (especially the Tone SOP)
+        const { data: agentSops } = await supabase
+          .from("agent_sops")
+          .select(`
+            sop_id,
+            sort_order,
+            sop:sops(id, name, content)
+          `)
+          .eq("agent_id", agentId)
+          .order("sort_order", { ascending: true });
+
+        // Find the Tone SOP to update
+        const toneSop = agentSops?.find((item: any) =>
+          item.sop?.name?.toLowerCase().includes("tone")
+        );
+
+        if (!toneSop) {
+          console.warn("[Agent Test] No Tone SOP found, updating base prompt instead");
+        }
+
         // Lazy-load OpenAI client
         const openai = new OpenAI({
           apiKey: process.env.OPENAI_API_KEY,
+          dangerouslyAllowBrowser: true, // Safe: This is a server-side API route
         });
 
         // Get conversation context (last 5 messages)
@@ -97,36 +118,41 @@ export async function POST(request: NextRequest) {
           .map((msg) => `${msg.role}: ${msg.content}`)
           .join("\n\n");
 
+        // Target the Tone SOP if available, otherwise base prompt
+        const targetSop = toneSop?.sop;
+        const currentContent = targetSop?.content || agent.system_prompt;
+
         // Use GPT-4o-mini to suggest SOP improvements
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
-              content: `You are an AI training assistant. Your job is to improve AI agent system prompts based on negative feedback.
+              content: `You are an AI training assistant. Your job is to improve ${targetSop ? 'Tone SOP rules' : 'agent prompts'} based on negative feedback.
 
 Given:
-1. The current system prompt
+1. The current ${targetSop ? 'Tone SOP' : 'system prompt'}
 2. A conversation context where the agent made a mistake
 3. Feedback notes explaining what went wrong
 
 Your task:
 - Identify the specific issue that caused the problem
-- Add a clear, concise rule to the system prompt to prevent this mistake in the future
-- Keep the original prompt structure and tone
-- Place new rules in the appropriate section (or create a new section if needed)
-- Return ONLY the updated system prompt, no explanations
+- Add a clear, emphatic rule to prevent this mistake in the future
+- Keep the existing rules and structure
+- Place new rules at the TOP with 🚨 emoji to make them highly visible
+- Return ONLY the updated content, no explanations
 
-Format for new rules:
-❌ DON'T: [what to avoid]
-✅ DO: [what to do instead]
+Format for critical rules:
+🚨 CRITICAL: [Brief description]
+❌ NEVER: [what to absolutely avoid]
+✅ ALWAYS: [what to do instead]
 
-Keep rules specific, actionable, and testable.`,
+Keep rules specific, actionable, and testable. Make them BOLD and EMPHATIC so the AI can't miss them.`,
             },
             {
               role: "user",
-              content: `Current System Prompt:
-${agent.system_prompt}
+              content: `Current ${targetSop ? 'Tone SOP' : 'System Prompt'}:
+${currentContent}
 
 ---
 
@@ -145,34 +171,56 @@ Feedback Notes: ${notes || "No specific notes provided"}
 
 ${message?.tool_results ? `\nTool Results: ${JSON.stringify(message.tool_results, null, 2)}` : ""}
 
-Please provide an updated system prompt that addresses this issue.`,
+Please provide updated ${targetSop ? 'Tone SOP rules' : 'system prompt'} that addresses this issue.`,
             },
           ],
-          temperature: 0.3, // Lower temperature for more consistent improvements
+          temperature: 0.3,
           max_tokens: 4000,
         });
 
-        updatedPrompt = completion.choices[0]?.message?.content?.trim() || agent.system_prompt;
+        updatedPrompt = completion.choices[0]?.message?.content?.trim() || currentContent;
 
-        // Update agent's system prompt
-        const { error: updateError } = await supabase
-          .from("ai_agents")
-          .update({
-            system_prompt: updatedPrompt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", agentId);
+        // Update the appropriate target
+        if (targetSop) {
+          // Update the Tone SOP
+          const { error: updateError } = await supabase
+            .from("sops")
+            .update({
+              content: updatedPrompt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", targetSop.id);
 
-        if (updateError) {
-          console.error("[Agent Test] Error updating system prompt:", updateError);
+          if (updateError) {
+            console.error("[Agent Test] Error updating Tone SOP:", updateError);
+          } else {
+            sopUpdated = true;
+            console.log("[Agent Test] Updated Tone SOP with feedback");
+          }
         } else {
-          sopUpdated = true;
+          // Fallback: update base prompt
+          const { error: updateError } = await supabase
+            .from("ai_agents")
+            .update({
+              system_prompt: updatedPrompt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", agentId);
 
-          // Log the SOP change for audit trail
+          if (updateError) {
+            console.error("[Agent Test] Error updating base prompt:", updateError);
+          } else {
+            sopUpdated = true;
+            console.log("[Agent Test] Updated base prompt with feedback");
+          }
+        }
+
+        // Log the change for audit trail
+        if (sopUpdated) {
           await supabase.from("agent_sop_changes").insert({
             agent_id: agentId,
             change_type: "feedback_improvement",
-            previous_prompt: agent.system_prompt,
+            previous_prompt: currentContent,
             new_prompt: updatedPrompt,
             trigger_message_id: messageId,
             feedback_notes: notes,

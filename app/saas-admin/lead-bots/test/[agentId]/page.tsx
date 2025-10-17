@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Send, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle, RefreshCw, Settings, Trash2, MessageSquare } from "lucide-react";
 
 interface Message {
   id: string;
@@ -86,7 +86,7 @@ export default function AgentTestPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentId,
+          agent_id: agentId,
           channel: "test_ui",
           metadata: {
             test_session: true,
@@ -96,22 +96,119 @@ export default function AgentTestPage() {
       });
 
       const data = await response.json();
-      if (data.success) {
-        setConversationId(data.data.id);
+      console.log("Session creation response:", data);
+
+      // API returns { success, conversation } not { success, data }
+      if (data.success && data.conversation) {
+        setConversationId(data.conversation.id);
         setMessages([]);
         setToolErrors([]);
 
         // Create test session record
         setTestSession({
           id: crypto.randomUUID(),
-          conversation_id: data.data.id,
+          conversation_id: data.conversation.id,
           started_at: new Date().toISOString(),
           message_count: 0,
           feedback_count: 0,
         });
+      } else {
+        console.error("Failed to create session:", data);
+        alert(`Failed to create test session: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error("Error starting session:", error);
+      alert(`Error starting test session: ${error}`);
+    }
+  };
+
+  const startNewLeadConversation = async () => {
+    setLoading(true);
+    try {
+      // Create a new conversation
+      const response = await fetch("/api/ai-agents/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_id: agentId,
+          channel: "test_ui",
+          metadata: {
+            test_session: true,
+            debug_mode: debugMode,
+            simulated_lead: true,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success || !data.conversation) {
+        alert(`Failed to create conversation: ${data.error || 'Unknown error'}`);
+        setLoading(false);
+        return;
+      }
+
+      const newConversationId = data.conversation.id;
+      setConversationId(newConversationId);
+      setMessages([]);
+      setToolErrors([]);
+
+      // Simulate initial lead message (like a form submission webhook trigger)
+      // This is the SYSTEM notification that triggers the first outreach
+      const initialMessage = "NEW LEAD: Sam just submitted contact form. This is your first contact - send initial outreach message.";
+
+      // Send the initial trigger message
+      const messageResponse = await fetch(`/api/ai-agents/conversations/${newConversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: initialMessage,
+          metadata: {
+            test_mode: true,
+            debug_mode: debugMode,
+            self_debug_enabled: true,
+            simulated_lead: true,
+            lead_name: "Sam",
+          },
+        }),
+      });
+
+      const messageData = await messageResponse.json();
+
+      if (messageData.success && messageData.assistantMessage) {
+        // Show the agent's initial outreach message
+        const assistantMessage: Message = {
+          id: messageData.assistantMessage.id,
+          role: "assistant",
+          content: messageData.assistantMessage.content,
+          tool_calls: messageData.assistantMessage.tool_calls,
+          tool_results: messageData.assistantMessage.tool_results,
+          created_at: messageData.assistantMessage.created_at,
+        };
+
+        setMessages([assistantMessage]);
+
+        // Check for tool errors in debug mode
+        if (debugMode && messageData.assistantMessage.tool_results) {
+          const errors = messageData.assistantMessage.tool_results.filter((result: any) => !result.success);
+          if (errors.length > 0) {
+            setToolErrors(errors.map((err: any) => ({
+              messageId: messageData.assistantMessage.id,
+              timestamp: new Date().toISOString(),
+              tool: err.tool_name,
+              error: err.error,
+              result: err,
+            })));
+          }
+        }
+      } else {
+        alert(`Failed to get agent response: ${messageData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error starting new lead conversation:", error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,24 +242,24 @@ export default function AgentTestPage() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.assistantMessage) {
         const assistantMessage: Message = {
-          id: data.data.id,
+          id: data.assistantMessage.id,
           role: "assistant",
-          content: data.data.content,
-          tool_calls: data.data.tool_calls,
-          tool_results: data.data.tool_results,
-          created_at: data.data.created_at,
+          content: data.assistantMessage.content,
+          tool_calls: data.assistantMessage.tool_calls,
+          tool_results: data.assistantMessage.tool_results,
+          created_at: data.assistantMessage.created_at,
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
 
         // Check for tool errors in debug mode
-        if (debugMode && data.data.tool_results) {
-          const errors = data.data.tool_results.filter((result: any) => !result.success);
+        if (debugMode && data.assistantMessage.tool_results) {
+          const errors = data.assistantMessage.tool_results.filter((result: any) => !result.success);
           if (errors.length > 0) {
             setToolErrors((prev) => [...prev, ...errors.map((err: any) => ({
-              messageId: data.data.id,
+              messageId: data.assistantMessage.id,
               timestamp: new Date().toISOString(),
               tool: err.tool_name,
               error: err.error,
@@ -242,15 +339,15 @@ export default function AgentTestPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-white">
               AI Agent Test Lab
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               {agent?.name} • {agent?.model}
             </p>
           </div>
@@ -264,21 +361,31 @@ export default function AgentTestPage() {
                 onChange={(e) => setDebugMode(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm text-gray-700">Self-Debug Mode</span>
+              <span className="text-sm text-gray-300">Self-Debug Mode</span>
             </label>
 
             {/* Tool Errors Badge */}
             {toolErrors.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-lg text-sm">
+              <div className="flex items-center gap-2 px-3 py-1 bg-red-900 text-red-200 rounded-lg text-sm">
                 <AlertTriangle className="w-4 h-4" />
                 {toolErrors.length} Tool Error{toolErrors.length > 1 ? "s" : ""}
               </div>
             )}
 
+            {/* Start New Lead Conversation */}
+            <button
+              onClick={startNewLeadConversation}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Simulate New Lead
+            </button>
+
             {/* Clear Session */}
             <button
               onClick={clearSession}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
             >
               <Trash2 className="w-4 h-4" />
               Clear Session
@@ -302,7 +409,7 @@ export default function AgentTestPage() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {messages.length === 0 && (
-              <div className="text-center text-gray-500 mt-20">
+              <div className="text-center text-gray-400 mt-20">
                 <p className="text-lg font-medium">Start Testing</p>
                 <p className="text-sm mt-2">Send a message as if you're a lead to test the agent's responses</p>
               </div>
@@ -319,7 +426,7 @@ export default function AgentTestPage() {
                     className={`rounded-lg p-4 ${
                       message.role === "user"
                         ? "bg-blue-600 text-white ml-auto max-w-lg"
-                        : "bg-white border border-gray-200"
+                        : "bg-gray-800 border border-gray-700 text-gray-100"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
@@ -407,8 +514,8 @@ export default function AgentTestPage() {
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-gray-600">
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-gray-300">
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>Agent is thinking...</span>
                   </div>
@@ -420,7 +527,7 @@ export default function AgentTestPage() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-gray-200 bg-white px-6 py-4">
+          <div className="border-t border-gray-700 bg-gray-800 px-6 py-4">
             <div className="flex items-center gap-3">
               <input
                 type="text"
@@ -433,13 +540,13 @@ export default function AgentTestPage() {
                   }
                 }}
                 placeholder="Type a message as a lead..."
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 border border-gray-600 bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
                 disabled={loading}
               />
               <button
                 onClick={sendMessage}
-                disabled={loading || !input.trim()}
-                className="bg-blue-600 text-white rounded-lg px-6 py-3 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                disabled={loading || !input.trim() || !conversationId}
+                className="bg-blue-600 text-white rounded-lg px-6 py-3 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 Send
@@ -450,16 +557,16 @@ export default function AgentTestPage() {
 
         {/* Debug Sidebar */}
         {debugMode && (
-          <div className="w-96 border-l border-gray-200 bg-white overflow-y-auto">
+          <div className="w-96 border-l border-gray-700 bg-gray-800 overflow-y-auto">
             <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-4">Debug Panel</h3>
+              <h3 className="font-semibold text-white mb-4">Debug Panel</h3>
 
               {/* Tool Errors */}
               {toolErrors.length > 0 ? (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-red-800">Tool Errors</h4>
+                  <h4 className="text-sm font-medium text-red-400">Tool Errors</h4>
                   {toolErrors.map((error, idx) => (
-                    <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                    <div key={idx} className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
                         <div className="flex-1">
@@ -474,7 +581,7 @@ export default function AgentTestPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 text-center py-8">
+                <p className="text-sm text-gray-400 text-center py-8">
                   No tool errors detected
                 </p>
               )}
@@ -482,10 +589,10 @@ export default function AgentTestPage() {
               {/* Allowed Tools */}
               {agent && (
                 <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Allowed Tools</h4>
+                  <h4 className="text-sm font-medium text-gray-300 mb-2">Allowed Tools</h4>
                   <div className="space-y-1">
                     {agent.allowed_tools?.map((tool) => (
-                      <div key={tool} className="text-xs bg-gray-100 rounded px-2 py-1">
+                      <div key={tool} className="text-xs bg-gray-700 text-gray-200 rounded px-2 py-1">
                         {tool}
                       </div>
                     ))}

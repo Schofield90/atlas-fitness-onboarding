@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import {
   Building2,
@@ -36,50 +35,31 @@ export default function SaasAdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
-    let mounted = true
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[SaaS Admin] Auth state changed:', event, session?.user?.email)
-
-      if (mounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        // Small delay to ensure session is fully loaded
-        setTimeout(() => {
-          if (mounted) {
-            checkAuthAndFetchData()
-          }
-        }, 100)
-      }
-    })
-
-    // Also check immediately in case session already exists
     checkAuthAndFetchData()
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
   }, [])
 
-  const checkAuthAndFetchData = async (retryCount = 0) => {
+  const checkAuthAndFetchData = async () => {
     try {
-      // Get current user - with retry mechanism for session loading
-      const { data: { user }, error } = await supabase.auth.getUser()
+      // Fetch current user via API (server-side auth check)
+      const userResponse = await fetch('/api/auth/user')
 
-      if (error || !user) {
-        // Retry up to 3 times with increasing delays (100ms, 300ms, 500ms)
-        if (retryCount < 3) {
-          const delay = 100 + (retryCount * 200)
-          console.log(`[SaaS Admin] User not found, retrying in ${delay}ms (attempt ${retryCount + 1}/3)...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-          return checkAuthAndFetchData(retryCount + 1)
-        }
+      if (!userResponse.ok) {
+        console.log('[SaaS Admin] User not authenticated')
+        setStats({
+          ...stats,
+          authError: 'Not logged in. Please login first.',
+          isAuthorized: false
+        })
+        setLoading(false)
+        return
+      }
 
-        // All retries exhausted
-        console.log('[SaaS Admin] User not found after 3 retries')
+      const { user } = await userResponse.json()
+
+      if (!user) {
+        console.log('[SaaS Admin] No user returned from API')
         setStats({
           ...stats,
           authError: 'Not logged in. Please login first.',
@@ -155,8 +135,8 @@ export default function SaasAdminDashboard() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+    await fetch('/api/auth/signout', { method: 'POST' })
+    router.push('/signin')
   }
 
   const handleLogin = () => {
