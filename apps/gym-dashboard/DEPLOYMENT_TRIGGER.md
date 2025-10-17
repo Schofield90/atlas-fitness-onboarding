@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: October 17, 2025 18:55 - CRITICAL: Fix UTC date conversion for GHL API + force redeploy
+Last updated: October 17, 2025 19:15 - CRITICAL: Fix Next.js fetch() caching + response headers
 
 ## Recent Deployments
 

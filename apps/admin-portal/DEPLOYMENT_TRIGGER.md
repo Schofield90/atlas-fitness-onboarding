@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: 2025-10-17 18:55 - CRITICAL: Fix UTC date conversion for GHL API + force redeploy
+Last updated: 2025-10-17 19:15 - CRITICAL: Fix Next.js fetch() caching + response headers
 
 This file is used to trigger deployments when shared app files change.
 Modify this file to force a rebuild.
