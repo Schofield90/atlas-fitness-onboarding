@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: October 17, 2025 - GoHighLevel Tools Registry Fix
+Last updated: October 17, 2025 - Fix npm install command to allow successful builds
 
 ## Recent Deployments
 
