@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { toolRegistry } from "@/lib/ai-agents/tools/registry";
+import { toolRegistry } from "@/app/lib/ai-agents/tools/registry";
 import { requireAuth } from "@/app/lib/api/auth-check";
 
 export async function POST(
