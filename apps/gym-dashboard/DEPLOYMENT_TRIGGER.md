@@ -99,3 +99,4 @@ Last updated: October 17, 2025 18:55 - CRITICAL: Fix UTC date conversion for GHL
 - PostgreSQL error code 42703 was causing 500 Internal Server Error
 - Query now works: returns 32 conversations successfully
 - This fixes: chat history not loading, second messages disappearing
+Force gym-dashboard deployment - GHL API caching fix (c0d07ca2)
