@@ -302,6 +302,21 @@ export class BookGHLAppointmentTool extends BaseTool {
 
     const slotsData = await response.json();
 
+    // DIAGNOSTIC: Log raw GHL API response (first 3 slots only, no PII)
+    console.info("[GHL_API_RESPONSE]", {
+      calendarId,
+      date,
+      totalKeys: Object.keys(slotsData).length,
+      dateKeys: Object.keys(slotsData).filter(k => k !== "traceId"),
+      sampleSlots: Object.entries(slotsData)
+        .filter(([k]) => k !== "traceId")
+        .map(([dateKey, data]: [string, any]) => ({
+          date: dateKey,
+          slotCount: data?.slots?.length || 0,
+          firstThreeSlots: data?.slots?.slice(0, 3) || []
+        }))
+    });
+
     // Convert API response to slot objects
     const availableSlots: Array<{ startTime: string; endTime: string }> = [];
     for (const [dateKey, dateData] of Object.entries(slotsData)) {
@@ -314,6 +329,12 @@ export class BookGHLAppointmentTool extends BaseTool {
         availableSlots.push({ startTime, endTime });
       }
     }
+
+    console.info("[GHL_SLOTS_PARSED]", {
+      date,
+      totalSlots: availableSlots.length,
+      firstThree: availableSlots.slice(0, 3)
+    });
 
     return availableSlots;
   }
