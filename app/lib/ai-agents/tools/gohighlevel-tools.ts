@@ -292,6 +292,8 @@ export class BookGHLAppointmentTool extends BaseTool {
           Version: "2021-07-28",
           "Content-Type": "application/json",
         },
+        cache: "no-store",
+        next: { revalidate: 0 },
       },
     );
 
@@ -374,6 +376,8 @@ export class BookGHLAppointmentTool extends BaseTool {
             id: contactId,
           },
         }),
+        cache: "no-store",
+        next: { revalidate: 0 },
       },
     );
 
@@ -557,6 +561,8 @@ export class UpdateGHLContactTool extends BaseTool {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(validated.updates),
+          cache: "no-store",
+          next: { revalidate: 0 },
         },
       );
 
@@ -638,6 +644,8 @@ export class AddGHLTagsTool extends BaseTool {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ tags: validated.tags }),
+          cache: "no-store",
+          next: { revalidate: 0 },
         },
       );
 
@@ -732,6 +740,8 @@ export class UpdateGHLOpportunityTool extends BaseTool {
             status: validated.stage,
             notes: validated.notes,
           }),
+          cache: "no-store",
+          next: { revalidate: 0 },
         },
       );
 

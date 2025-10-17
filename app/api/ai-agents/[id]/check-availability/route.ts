@@ -40,7 +40,16 @@ export async function POST(
       }
     );
 
-    return NextResponse.json(result);
+    // Return with explicit no-cache headers to prevent stale data
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "CDN-Cache-Control": "no-store",
+        "Vercel-CDN-Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
   } catch (error: any) {
     console.error("[Check Availability API] Error:", error);
     return NextResponse.json(
@@ -48,7 +57,16 @@ export async function POST(
         success: false,
         error: error.message || "Failed to check availability",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          "CDN-Cache-Control": "no-store",
+          "Vercel-CDN-Cache-Control": "no-store",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      }
     );
   }
 }
