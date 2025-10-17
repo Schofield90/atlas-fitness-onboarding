@@ -206,6 +206,119 @@ ${agent.system_prompt}`;
       // Reverse to chronological order (oldest first) for provider execution
       const messages = (messageHistory || []).reverse();
 
+      // 3a. CHECK FOR EXACT SCRIPT TEMPLATES (bypass Claude if template should be used)
+      // Count how many assistant messages exist (to determine which template to use)
+      const assistantMessageCount = messages.filter(m => m.role === 'assistant').length;
+
+      console.log(`[Orchestrator] 🔍 Template bypass check: assistantMessageCount=${assistantMessageCount}`);
+
+      // Get agent's exact script SOPs
+      const { data: exactScriptSops } = await this.supabase
+        .from('agent_sops')
+        .select(`
+          sop_id,
+          sort_order,
+          sop:sops!inner(id, name, content, strictness_level)
+        `)
+        .eq('agent_id', agent.id)
+        .eq('sop.strictness_level', 'exact_script')
+        .order('sort_order', { ascending: true });
+
+      console.log(`[Orchestrator] 🔍 Found ${exactScriptSops?.length || 0} exact_script SOPs`);
+      if (exactScriptSops && exactScriptSops.length > 0) {
+        console.log(`[Orchestrator] 🔍 SOP names:`, exactScriptSops.map(s => s.sop?.name));
+      }
+
+      // Check if we should use an exact template (1st, 2nd, or 3rd assistant message)
+      if (exactScriptSops && exactScriptSops.length > 0 && assistantMessageCount < 3) {
+        const templateIndex = assistantMessageCount; // 0 = first, 1 = second, 2 = third
+        const templateSop = exactScriptSops[templateIndex];
+
+        if (templateSop && templateSop.sop) {
+          console.log(`[Orchestrator] 🎯 Using exact template #${templateIndex + 1}: "${templateSop.sop.name}"`);
+          console.log(`[Orchestrator] Bypassing Claude to ensure exact template adherence`);
+
+          // Replace placeholders in template
+          let templateContent = templateSop.sop.content;
+
+          // Extract lead name from conversation metadata or recent messages
+          let leadName = 'there'; // default fallback
+          if (conversation.metadata?.lead_name) {
+            leadName = conversation.metadata.lead_name;
+          } else {
+            // Try to extract from recent user messages
+            const recentUserMsg = messages.filter(m => m.role === 'user').slice(-1)[0];
+            if (recentUserMsg?.content) {
+              // Simple name extraction (you can enhance this)
+              const nameMatch = recentUserMsg.content.match(/(?:my name is|i'm|i am)\s+(\w+)/i);
+              if (nameMatch) {
+                leadName = nameMatch[1];
+              }
+            }
+          }
+
+          // Get metadata values for placeholders
+          const gymName = agent.metadata?.gym_name || agent.name || 'our gym';
+          const location = agent.metadata?.location || 'your area';
+          const leadChaserName = agent.metadata?.lead_chaser_name || 'our team';
+
+          // Replace all placeholders
+          templateContent = templateContent
+            .replace(/\[lead name\]/gi, leadName)
+            .replace(/\[gym name\]/gi, gymName)
+            .replace(/\[location\]/gi, location)
+            .replace(/\[lead chaser name\]/gi, leadChaserName);
+
+          console.log(`[Orchestrator] Template after replacements: "${templateContent.substring(0, 100)}..."`);
+
+          // Save assistant message with template content (no AI call needed)
+          const { data: assistantMsg, error: assistantMsgError } =
+            await this.supabase
+              .from("ai_agent_messages")
+              .insert({
+                conversation_id: conversationId,
+                role: "assistant",
+                content: templateContent,
+                tool_calls: null,
+                tool_results: null,
+                tokens_used: 0, // No tokens used (template bypass)
+                cost_usd: 0, // No cost (template bypass)
+                model: agent.model,
+                metadata: {
+                  template_used: true,
+                  template_name: templateSop.sop.name,
+                  template_index: templateIndex + 1,
+                },
+              })
+              .select()
+              .single();
+
+          if (assistantMsgError || !assistantMsg) {
+            return {
+              success: false,
+              error: "Failed to save template message",
+              cost: this.emptyCost(),
+            };
+          }
+
+          // Update conversation stats (no tokens/cost since we bypassed Claude)
+          await this.supabase
+            .from("ai_agent_conversations")
+            .update({
+              last_message_at: new Date().toISOString(),
+              message_count: (conversation.message_count || 0) + 2,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", conversationId);
+
+          return {
+            success: true,
+            message: assistantMsg,
+            cost: this.emptyCost(),
+          };
+        }
+      }
+
       // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
       console.log('[Orchestrator] Agent allowed_tools:', allowedTools);
