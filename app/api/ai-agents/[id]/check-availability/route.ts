@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toolRegistry } from "@/lib/ai-agents/tools/registry";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authenticate the request
+    await requireAuth();
+
     const { date } = await request.json();
-    const agentId = params.id;
+    const { id: agentId } = await params;
 
     // Execute check_ghl_availability tool
     const result = await toolRegistry.executeTool(
