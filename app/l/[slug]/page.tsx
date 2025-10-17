@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createServiceRoleClient } from '@/app/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import Script from 'next/script';
 import { PublishedComponentRenderer } from '@/app/components/landing-builder/PublishedComponentRenderer';
 

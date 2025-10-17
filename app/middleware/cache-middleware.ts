@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cacheService, getCacheHealth } from '@/app/lib/cache/cache-utils';
-import { logger } from '@/app/lib/logger/logger';
+import { cacheService, getCacheHealth } from '@/lib/cache/cache-utils';
+import { logger } from '@/lib/logger/logger';
 
 /**
  * Cache Middleware

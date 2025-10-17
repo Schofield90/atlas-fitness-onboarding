@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import { Calendar, AlertTriangle, MessageSquare, CheckCircle, XCircle, Clock } from "lucide-react";
 

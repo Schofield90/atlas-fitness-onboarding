@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import CoachDashboard from "@/app/components/nutrition/CoachDashboard";
 import DashboardLayout from "@/app/components/DashboardLayout";
 

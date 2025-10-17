@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import DragDropFormBuilder from '@/app/components/FormBuilder/DragDropFormBuilder'
 

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   formatTimeDisplay,
   formatDateDisplay,
-} from "@/app/lib/utils/time-display";
+} from "@/lib/utils/time-display";
 import {
   ArrowLeft,
   Save,
@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import DashboardLayout from "@/app/components/DashboardLayout";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { useOrganization } from "@/app/hooks/useOrganization";
 import RecurrenceModal from "@/app/components/classes/RecurrenceModal";
 import WaitlistManager from "@/app/components/classes/WaitlistManager";

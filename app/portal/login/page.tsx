@@ -2,9 +2,9 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Dumbbell, Mail, Phone } from 'lucide-react'
-import toast from '@/app/lib/toast'
+import toast from '@/lib/toast'
 
 export default function MemberPortalLogin() {
   const [method, setMethod] = useState<'email' | 'phone'>('email')

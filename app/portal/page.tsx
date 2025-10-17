@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import {
   Home,
   Calendar,
@@ -11,7 +11,7 @@ import {
   Activity,
   Dumbbell,
 } from "lucide-react";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 import AINutritionCoach from "@/app/components/AINutritionCoach";
 import { format, parseISO } from "date-fns";
 

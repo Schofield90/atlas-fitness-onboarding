@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
 import { SaasBillingDashboard } from '@/app/components/saas/SaasBillingDashboard'
 import StripeConnect from '@/app/components/billing/StripeConnect'
 import Button from '@/app/components/ui/Button'
 import { Card } from '@/app/components/ui/Card'
-import { formatBritishCurrency } from '@/app/lib/utils/british-format'
-import { useToast } from '@/app/lib/hooks/useToast'
-import { isFeatureEnabled } from '@/app/lib/feature-flags'
+import { formatBritishCurrency } from '@/lib/utils/british-format'
+import { useToast } from '@/lib/hooks/useToast'
+import { isFeatureEnabled } from '@/lib/feature-flags'
 
 function BillingContent() {
   const [loading, setLoading] = useState(true)

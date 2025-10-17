@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/app/lib/supabase/client";
-import { getCurrentUserOrganization } from "@/app/lib/organization-service";
+import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserOrganization } from "@/lib/organization-service";
 
 export default function DebugMembershipsPage() {
   const [debugData, setDebugData] = useState<any>({

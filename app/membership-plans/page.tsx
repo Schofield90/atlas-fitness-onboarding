@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Users, CreditCard, Calendar, Clock, Check, X } from 'lucide-react';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import { createClient } from '@/app/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useOrganization } from '@/app/hooks/useOrganization';
-import toast from '@/app/lib/toast';
+import toast from '@/lib/toast';
 
 interface MembershipPlan {
   id: string;

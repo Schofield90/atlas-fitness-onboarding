@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import DragDropFormBuilder from '@/app/components/forms/DragDropFormBuilder'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { 
   Plus, 
   FileText, 

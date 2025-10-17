@@ -1,5 +1,5 @@
 import { SuperAdminGuard } from "@/app/components/auth/SuperAdminGuard";
-import { createClient } from "@/app/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import {
   Building2,
   Users,

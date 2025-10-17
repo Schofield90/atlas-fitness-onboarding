@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { analytics } from "@/app/lib/analytics/client";
+import { analytics } from "@/lib/analytics/client";
 import Button from "@/app/components/ui/Button";
 import {
   Card,

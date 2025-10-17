@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { X } from "lucide-react";
-import { getCurrentUserOrganization } from "@/app/lib/organization-service";
+import { getCurrentUserOrganization } from "@/lib/organization-service";
 
 interface CreateClassTypeModalProps {
   onClose: () => void;

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import {
   getCurrentSessionInfo,
   validateSessionWithServer,
   refreshSessionIfNeeded,
   logSessionInfo,
   type SessionInfo,
-} from "@/app/lib/auth/multi-device-session";
+} from "@/lib/auth/multi-device-session";
 
 /**
  * Debug page for multi-device session management

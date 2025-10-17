@@ -2,7 +2,7 @@
 
 import BookingLinkEditor from '@/app/components/booking/BookingLinkEditor'
 import { useRouter } from 'next/navigation'
-import { useToast } from '@/app/lib/hooks/useToast'
+import { useToast } from '@/lib/hooks/useToast'
 
 export default function CreateBookingLinkPage() {
   const router = useRouter()

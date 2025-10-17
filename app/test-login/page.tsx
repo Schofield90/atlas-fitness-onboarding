@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createSessionClient } from "@/app/lib/supabase/client-with-session";
+import { createSessionClient } from "@/lib/supabase/client-with-session";
 
 export default function TestLoginPage() {
   const [email, setEmail] = useState("sam@atlas-gyms.co.uk");

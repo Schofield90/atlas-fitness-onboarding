@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createSessionClient } from "@/app/lib/supabase/client-with-session";
+import { createSessionClient } from "@/lib/supabase/client-with-session";
 import { Mail, Lock, Chrome, AlertCircle, Loader2 } from "lucide-react";
 
 function OwnerLoginForm() {

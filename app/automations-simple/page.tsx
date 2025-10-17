@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { getCurrentUserOrganization } from '@/app/lib/organization-client'
+import { createClient } from '@/lib/supabase/client'
+import { getCurrentUserOrganization } from '@/lib/organization-client'
 
 export default function SimpleAutomationsPage() {
   const router = useRouter()

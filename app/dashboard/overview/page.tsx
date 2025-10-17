@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal';
 import { Calendar, DollarSign, Users, TrendingUp, Bell, Gift, CreditCard, Activity, Search, Plus, MessageSquare, Send } from 'lucide-react';
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { createClient } from '@/app/lib/supabase/client';
-import { getCurrentUserOrganization } from '@/app/lib/organization-service';
+import { createClient } from '@/lib/supabase/client';
+import { getCurrentUserOrganization } from '@/lib/organization-service';
 import DashboardLayout from '@/app/components/DashboardLayout';
 import ClassDetailModal from '@/app/components/dashboard/ClassDetailModal';
 

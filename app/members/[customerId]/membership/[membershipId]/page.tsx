@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { formatBritishCurrency } from "@/app/lib/utils/british-format";
+import { formatBritishCurrency } from "@/lib/utils/british-format";
 import { ChevronLeft, Edit2, Pause, X, ChevronDown } from "lucide-react";
 
 interface MembershipDetails {

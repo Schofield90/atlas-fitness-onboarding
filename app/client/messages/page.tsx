@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createSessionClient, getSessionWithRetry } from "@/app/lib/supabase/client-with-session";
+import { createSessionClient, getSessionWithRetry } from "@/lib/supabase/client-with-session";
 import { Send, ChevronLeft, MessageCircle, User, Clock } from "lucide-react";
 
 export default function ClientMessagesPage() {

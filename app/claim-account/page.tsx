@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseBrowser } from "@/app/lib/supabase-browser";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { Eye, EyeOff, Check, X, Loader2, CheckCircle } from "lucide-react";
 
 function ClaimAccountContent() {

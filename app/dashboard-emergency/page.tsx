@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { checkEmergencyAuthClient } from '@/app/lib/auth/check-emergency'
+import { checkEmergencyAuthClient } from '@/lib/auth/check-emergency'
 import { Calendar, Users, DollarSign, Activity, MessageSquare, Settings, BarChart3, AlertTriangle } from 'lucide-react'
 
 export default function EmergencyDashboard() {

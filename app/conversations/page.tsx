@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import UnifiedMessaging from "@/app/components/UnifiedMessaging";
 import {
@@ -15,8 +15,8 @@ import {
   Bot,
   MessageCircle,
 } from "lucide-react";
-import { formatBritishDateTime } from "@/app/lib/utils/british-format";
-import { isFeatureEnabled } from "@/app/lib/feature-flags";
+import { formatBritishDateTime } from "@/lib/utils/british-format";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 interface Conversation {
   id: string;

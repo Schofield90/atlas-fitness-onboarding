@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import DynamicWorkflowBuilder from "@/app/components/automation/DynamicWorkflowBuilder";
-import type { Workflow } from "@/app/lib/types/automation";
+import type { Workflow } from "@/lib/types/automation";
 
 export default function EditWorkflowPage() {
   const router = useRouter();

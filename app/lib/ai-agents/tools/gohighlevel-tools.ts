@@ -284,13 +284,18 @@ export class BookGHLAppointmentTool extends BaseTool {
 
     // Fetch available slots from GHL v2 API
     // NOTE: This endpoint automatically filters out already-booked appointments
+    // CACHE BUSTING: Add timestamp to prevent ANY caching (browser, CDN, Next.js)
+    const cacheBuster = Date.now();
     const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}&_=${cacheBuster}`,
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           Version: "2021-07-28",
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
         cache: "no-store",
         next: { revalidate: 0 },

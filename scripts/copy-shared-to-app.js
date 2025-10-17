@@ -66,6 +66,7 @@ function copyDir(src, dest) {
 
 console.log(`\n📦 Copying shared resources to ${appName}...\n`);
 
+// Copy /app/* directories
 for (const dir of SHARED_DIRS) {
   const src = path.join(ROOT_DIR, 'app', dir);
   const dest = path.join(APP_DIR, 'app', dir);
@@ -76,7 +77,30 @@ for (const dir of SHARED_DIRS) {
   }
 
   copyDir(src, dest);
-  console.log(`✅ Copied ${dir}`);
+  console.log(`✅ Copied app/${dir}`);
+}
+
+// Copy root /lib directory (for @/lib imports)
+const libSrc = path.join(ROOT_DIR, 'lib');
+const libDest = path.join(APP_DIR, 'lib');
+
+if (fs.existsSync(libDest)) {
+  fs.rmSync(libDest, { recursive: true, force: true });
+}
+
+copyDir(libSrc, libDest);
+console.log(`✅ Copied lib/ (root level)`);
+
+// Copy app/lib from gym-dashboard (contains supabase, toast, etc.)
+const appLibSrc = path.join(ROOT_DIR, 'apps', 'gym-dashboard', 'app', 'lib');
+const appLibDest = path.join(APP_DIR, 'app', 'lib');
+
+if (fs.existsSync(appLibSrc)) {
+  if (fs.existsSync(appLibDest)) {
+    fs.rmSync(appLibDest, { recursive: true, force: true });
+  }
+  copyDir(appLibSrc, appLibDest);
+  console.log(`✅ Copied app/lib from gym-dashboard`);
 }
 
 console.log(`\n✨ Done! Shared resources copied to ${appName}\n`);

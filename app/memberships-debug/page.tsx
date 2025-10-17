@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 export default function MembershipsDebugPage() {
   const [debugData, setDebugData] = useState<any>({ loading: true })

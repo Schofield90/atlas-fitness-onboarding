@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { getCurrentUserOrganization } from '@/app/lib/organization-service'
+import { getCurrentUserOrganization } from '@/lib/organization-service'
 
 export default function BookingDebugPage() {
   const [loading, setLoading] = useState(false)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Calendar, Clock, Users, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import AddClassModal from '../classes/AddClassModal'

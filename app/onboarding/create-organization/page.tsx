@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useOrganization } from "@/app/hooks/useOrganization";
 import { Building2, Dumbbell, Users, ArrowRight } from "lucide-react";

@@ -6,8 +6,8 @@ import CompactFilters from "@/app/components/booking/CompactFilters";
 import PremiumCalendarGrid from "@/app/components/booking/PremiumCalendarGrid";
 import SelectedClassDetails from "@/app/components/booking/SelectedClassDetails";
 import DashboardLayout from "@/app/components/DashboardLayout";
-import { getAuthenticatedClient } from "@/app/lib/supabase/server";
-import { transformClassesForCalendar } from "@/app/lib/calendar/class-transformer";
+import { getAuthenticatedClient } from "@/lib/supabase/server";
+import { transformClassesForCalendar } from "@/lib/calendar/class-transformer";
 import ClassCalendarClient from "./ClassCalendarClient";
 
 async function getClasses(organizationId: string) {

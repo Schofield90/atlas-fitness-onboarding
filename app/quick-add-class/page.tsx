@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link'
 import { useState } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
-import { getCurrentUserOrganization } from '@/app/lib/organization-service';
+import { createClient } from '@/lib/supabase/client';
+import { getCurrentUserOrganization } from '@/lib/organization-service';
 
 export default function QuickAddClass() {
   const [message, setMessage] = useState('');

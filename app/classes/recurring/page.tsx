@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Calendar, Clock, Users, MapPin, Plus, Edit, Trash2, Activity, Repeat } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { RequireOrganization } from '../../components/auth/RequireOrganization'

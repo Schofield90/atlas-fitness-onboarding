@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import DashboardLayout from '../components/DashboardLayout'
 import { Calendar, Clock, User, Mail, Phone, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'

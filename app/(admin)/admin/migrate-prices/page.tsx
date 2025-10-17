@@ -3,7 +3,7 @@
 import { useState } from "react";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { AlertTriangle, Check, RefreshCw, Database } from "lucide-react";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 
 interface PlanStatus {
   id: string;

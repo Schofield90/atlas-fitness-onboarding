@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
   Plus,
@@ -18,7 +18,7 @@ import {
   ExternalLink,
   Building2,
 } from "lucide-react";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 
 interface AdminLandingPage {
   id: string;

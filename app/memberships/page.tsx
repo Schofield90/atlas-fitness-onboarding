@@ -8,11 +8,11 @@ import CategoryManagementModal from "../components/memberships/CategoryManagemen
 import {
   formatBritishCurrency,
   formatBritishDate,
-} from "@/app/lib/utils/british-format";
+} from "@/lib/utils/british-format";
 import {
   getMembershipPlans,
   type MembershipPlan,
-} from "@/app/lib/services/membership-service";
+} from "@/lib/services/membership-service";
 import {
   Settings,
   MoreVertical,
@@ -26,7 +26,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 import { useRouter } from "next/navigation";
 
 export default function MembershipsPage() {

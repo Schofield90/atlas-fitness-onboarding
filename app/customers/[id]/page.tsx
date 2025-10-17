@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   Phone,
@@ -17,7 +17,7 @@ import {
 import CustomerProfileTabs from "@/app/components/customers/CustomerProfileTabs";
 import { MessageComposer } from "@/app/components/messaging/MessageComposer";
 import { WaiverAssignmentModal } from "@/app/components/customers/WaiverAssignmentModal";
-import { formatBritishDate } from "@/app/lib/utils/british-format";
+import { formatBritishDate } from "@/lib/utils/british-format";
 
 interface Customer {
   id: string;

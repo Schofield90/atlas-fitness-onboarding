@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { ArrowLeft, Check } from 'lucide-react'
-import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
+import { TRIAL_CTA_TEXT } from '@/lib/constants'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 interface BillingPlan {
   id: string

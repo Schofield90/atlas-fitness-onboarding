@@ -1,4 +1,4 @@
-import { createClient } from "@/app/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
 
 // Lazy Redis initialization - only create when needed

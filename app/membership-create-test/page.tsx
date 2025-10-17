@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createAdminClient } from '@/app/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export default function MembershipCreateTestPage() {
   const [result, setResult] = useState<any>(null)

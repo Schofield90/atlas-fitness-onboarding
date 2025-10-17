@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import {
   Building2,
   Users,
@@ -16,7 +16,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>({

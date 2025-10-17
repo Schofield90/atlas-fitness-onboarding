@@ -1,4 +1,4 @@
-import { createClient } from '@/app/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
 import { z } from 'zod';
 

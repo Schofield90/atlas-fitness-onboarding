@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import { isFeatureEnabled } from '@/app/lib/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { 
   BarChart3, 
   TrendingUp, 

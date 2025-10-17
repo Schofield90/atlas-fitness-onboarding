@@ -15,13 +15,13 @@ import {
   CalendarDays,
 } from "lucide-react";
 import Button from "@/app/components/ui/Button";
-import toast from "@/app/lib/toast";
+import toast from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { GoogleStyleCalendar } from "@/app/components/calendar/GoogleStyleCalendar";
 import { EventDetailsModal } from "@/app/components/calendar/EventDetailsModal";
 import { EditEventModal } from "@/app/components/calendar/EditEventModal";
 import { BookingModal } from "@/app/components/calendar/BookingModal";
-import type { CalendarEvent, TimeSlot } from "@/app/lib/types/calendar";
+import type { CalendarEvent, TimeSlot } from "@/lib/types/calendar";
 
 interface Booking {
   id: string;
