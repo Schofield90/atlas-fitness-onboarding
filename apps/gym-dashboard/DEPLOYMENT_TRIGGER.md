@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: October 17, 2025 17:45 - Add diagnostics + force dynamic rendering for GHL calendar
+Last updated: October 17, 2025 18:55 - CRITICAL: Fix UTC date conversion for GHL API + force redeploy
 
 ## Recent Deployments
 
