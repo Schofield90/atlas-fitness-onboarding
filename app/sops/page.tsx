@@ -9,7 +9,7 @@ import { SOPEditor } from '@/app/components/sops/SOPEditor'
 import { SOPViewer } from '@/app/components/sops/SOPViewer'
 import { SOPAnalysis } from '@/app/components/sops/SOPAnalysis'
 import { SOPAssistant } from '@/app/components/sops/SOPAssistant'
-import { SOPWithDetails, SOPFilters, SOPAnalysisResult } from '@/lib/types/sop'
+import { SOPWithDetails, SOPFilters, SOPAnalysisResult } from '@/app/lib/types/sop'
 
 type ViewMode = 'list' | 'create' | 'edit' | 'view'
 

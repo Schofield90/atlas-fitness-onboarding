@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { TRIAL_CTA_TEXT } from '@/lib/constants'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 export default function GetStartedPage() {
   const router = useRouter()

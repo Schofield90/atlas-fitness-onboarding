@@ -41,7 +41,7 @@ Guidelines:
 - Log all support interactions for follow-up
 
 Tone: Professional, friendly, and helpful. Think of yourself as the helpful front desk person who genuinely cares about member satisfaction.`,
-    model: 'gpt-5-mini',
+    model: 'gpt-4o-mini',
     temperature: 0.7,
     max_tokens: 2048,
     allowed_tools: [
@@ -95,7 +95,7 @@ Report Structure:
 5. Recommendations (prioritized by impact)
 
 Tone: Professional, analytical, and insightful. You're the CFO's trusted advisor.`,
-    model: 'gpt-5',
+    model: 'gpt-4o',
     temperature: 0.3,
     max_tokens: 4096,
     allowed_tools: [
@@ -155,7 +155,7 @@ Engagement Strategy:
 - Tag members (with permission) in success stories
 
 Tone: Energetic, positive, and community-focused. You're the gym's hype person!`,
-    model: 'gpt-5',
+    model: 'gpt-4o',
     temperature: 0.9,
     max_tokens: 2048,
     allowed_tools: [
@@ -213,7 +213,7 @@ Red Flags to Watch:
 - Member complaints about availability
 
 Tone: Analytical, practical, and efficiency-focused. You optimize for both member satisfaction and business profitability.`,
-    model: 'gpt-5-mini',
+    model: 'gpt-4o-mini',
     temperature: 0.4,
     max_tokens: 3072,
     allowed_tools: [
@@ -276,7 +276,7 @@ Communication Approach:
 - Personal touch (use member's name, reference history)
 
 Tone: Caring, proactive, and member-focused. You genuinely want members to succeed.`,
-    model: 'gpt-5-mini',
+    model: 'gpt-4o-mini',
     temperature: 0.6,
     max_tokens: 2048,
     allowed_tools: [
@@ -340,7 +340,7 @@ Objection Handling:
 - "Checking other gyms": Highlight unique differentiators
 
 Tone: Enthusiastic, helpful, and consultative. You're solving their problem, not just selling.`,
-    model: 'gpt-5-mini',
+    model: 'gpt-4o-mini',
     temperature: 0.8,
     max_tokens: 2048,
     allowed_tools: [

@@ -7,9 +7,9 @@ import CompactFilters from "@/app/components/booking/CompactFilters";
 import PremiumCalendarGrid from "@/app/components/booking/PremiumCalendarGrid";
 import SelectedClassDetails from "@/app/components/booking/SelectedClassDetails";
 import AddClassModal from "@/app/classes/AddClassModal";
-import { transformClassesForCalendar } from "@/lib/calendar/class-transformer";
-import { CalendarView } from "@/lib/utils/calendar-navigation";
-import toast from "@/lib/toast";
+import { transformClassesForCalendar } from "@/app/lib/calendar/class-transformer";
+import { CalendarView } from "@/app/lib/utils/calendar-navigation";
+import toast from "@/app/lib/toast";
 
 interface ClassCalendarClientProps {
   organizationId: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/app/lib/supabase/client';
 import { Check, Copy, Mail, User } from 'lucide-react';
 
 export default function SetupSamPortalPage() {

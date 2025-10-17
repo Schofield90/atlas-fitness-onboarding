@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Save, User, Mail, Phone, Calendar, MapPin } from 'lucide-react'
 

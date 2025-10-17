@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createSessionClient } from "@/lib/supabase/client-with-session";
+import { createSessionClient } from "@/app/lib/supabase/client-with-session";
 
 export default function LogoutPage() {
   const router = useRouter();

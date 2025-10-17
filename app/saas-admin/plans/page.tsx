@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { LogOut, ArrowLeft } from 'lucide-react'
 import AdminSidebar from '../components/AdminSidebar'

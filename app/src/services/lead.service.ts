@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/app/lib/supabase/server';
 import { z } from 'zod';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';

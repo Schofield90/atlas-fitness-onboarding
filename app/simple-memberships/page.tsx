@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '../components/DashboardLayout'
 
 export default function SimpleMembershipsPage() {

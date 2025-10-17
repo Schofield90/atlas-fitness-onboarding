@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '@/app/lib/supabase/admin';
+import { createAdminClient } from '../../../app/lib/supabase/admin';
 
 /**
  * Trigger automation workflow
@@ -129,25 +129,22 @@ export class ScheduleTaskTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
-      // Calculate next_run_at from executeAt or current time for cron tasks
-      const nextRunAt = validated.executeAt || new Date().toISOString();
-
       const { data: task, error } = await supabase
-        .from('ai_agent_tasks')
+        .from('scheduled_tasks')
         .insert({
-          agent_id: context.agentId,
           organization_id: context.organizationId,
           title: validated.title,
           description: validated.description,
-          task_type: validated.cronExpression ? 'scheduled' : 'adhoc',
+          task_type: validated.taskType,
+          execute_at: validated.executeAt,
+          cron_expression: validated.cronExpression,
+          is_recurring: !!validated.cronExpression,
+          task_data: validated.taskData || {},
           status: 'pending',
-          next_run_at: nextRunAt,
-          schedule_cron: validated.cronExpression || null,
-          context: validated.taskData || {},
+          created_by_agent: context.agentId,
           metadata: {
             conversation_id: context.conversationId,
-            original_task_type: validated.taskType,
-            created_by_tool: 'schedule_task'
+            task_id: context.taskId
           }
         })
         .select()
@@ -399,8 +396,11 @@ export class CreateRetentionCampaignTool extends BaseTool {
           status: 'active',
           start_date: validated.startDate,
           end_date: validated.endDate,
-          target_audience: validated.targetAudience
-          // ai_insights column doesn't exist yet - removed to prevent schema error
+          target_audience: validated.targetAudience,
+          ai_insights: {
+            created_by_agent: context.agentId,
+            created_at: new Date().toISOString()
+          }
         })
         .select('id, name, status')
         .single();

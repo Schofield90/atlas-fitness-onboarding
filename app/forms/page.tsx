@@ -2,7 +2,7 @@
 
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Form {

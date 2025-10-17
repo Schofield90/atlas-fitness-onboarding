@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { getCurrentUserOrganization } from '@/lib/organization-client'
+import { createClient } from '@/app/lib/supabase/client'
+import { getCurrentUserOrganization } from '@/app/lib/organization-client'
 
 export default function AuthDebugPage() {
   const [authInfo, setAuthInfo] = useState<any>({})

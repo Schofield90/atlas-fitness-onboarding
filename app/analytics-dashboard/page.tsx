@@ -11,7 +11,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import type { AnalyticsData } from '@/lib/analytics/types';
+import type { AnalyticsData } from '@/app/lib/analytics/types';
 
 export default function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);

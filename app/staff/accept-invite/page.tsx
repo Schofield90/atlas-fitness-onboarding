@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import { CheckCircle, XCircle, Loader } from "lucide-react";
 import Link from "next/link";
 

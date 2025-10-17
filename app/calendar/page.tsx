@@ -9,8 +9,8 @@ import { EventDetailsModal } from '@/app/components/calendar/EventDetailsModal'
 import { EditEventModal } from '@/app/components/calendar/EditEventModal'
 import BookingLinksManager from '@/app/components/booking/BookingLinksManager'
 import { Calendar as CalendarIcon, Settings, Link, Plus, LayoutGrid, CalendarDays } from 'lucide-react'
-import type { CalendarEvent, TimeSlot } from '@/lib/types/calendar'
-import toast from '@/lib/toast'
+import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
+import toast from '@/app/lib/toast'
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())

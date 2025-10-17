@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import AdminKPITiles from "./components/AdminKPITiles";
 import AdminOrganizationsTable from "./components/AdminOrganizationsTable";
 import AdminActivityFeed from "./components/AdminActivityFeed";

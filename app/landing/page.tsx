@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import {
   Users,
   MessageSquare,
@@ -26,7 +26,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { TRIAL_CTA_TEXT } from "@/lib/constants";
+import { TRIAL_CTA_TEXT } from "@/app/lib/constants";
 
 export default function LandingPage() {
   const [email, setEmail] = useState("");

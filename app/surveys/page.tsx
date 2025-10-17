@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { isFeatureEnabled } from '@/lib/feature-flags'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import ComingSoon from '@/app/components/ComingSoon'
-import { useToast } from '@/lib/hooks/useToast'
+import { useToast } from '@/app/lib/hooks/useToast'
 import SurveyAnalytics from '@/app/components/surveys/SurveyAnalytics'
 import { 
   PlusIcon,

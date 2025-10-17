@@ -20,7 +20,7 @@ import {
   Eye,
   Copy
 } from 'lucide-react'
-import { TRIAL_CTA_TEXT } from '@/lib/constants'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 interface WorkflowTemplate {
   id: string

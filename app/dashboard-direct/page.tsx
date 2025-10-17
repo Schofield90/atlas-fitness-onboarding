@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
 import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3 } from 'lucide-react'
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Search, UserPlus, X } from 'lucide-react';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/app/lib/supabase/client';
 
 interface Customer {
   id: string;

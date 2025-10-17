@@ -9,7 +9,6 @@ import { AnthropicProvider } from './providers/anthropic-provider';
 import { ToolRegistry } from './tools/registry';
 import { calculateCost, logAIUsage, type CostCalculation } from './cost-tracker';
 import { checkGlobalRateLimit, checkOrgRateLimit, checkAgentRateLimit } from './rate-limiter';
-import { addSelfDebugInstructions } from './self-debug';
 
 export interface AgentTask {
   id: string;
@@ -86,160 +85,6 @@ export interface ExecuteMessageResult {
 export class AgentOrchestrator {
   private supabase = createAdminClient();
   private toolRegistry = new ToolRegistry();
-
-  /**
-   * Load agent's system prompt with appended SOPs (Standard Operating Procedures) and self-debug instructions
-   */
-  private async loadAgentSystemPrompt(agentId: string, basePrompt: string, agentMetadata?: any): Promise<string> {
-    try {
-      // Fetch SOPs linked to this agent via agent_sops junction table
-      const { data: agentSops, error: sopsError } = await this.supabase
-        .from('agent_sops')
-        .select(`
-          sop_id,
-          sort_order,
-          sop:sops(*)
-        `)
-        .eq('agent_id', agentId)
-        .order('sort_order', { ascending: true });
-
-      let promptWithSops = basePrompt;
-
-      // Add metadata context if available
-      if (agentMetadata) {
-        const metadataSection = `
-
-## AVAILABLE CONTEXT & INFORMATION
-
-You have access to the following information about your gym:
-
-- **Gym Name**: ${agentMetadata.gym_name || 'Not set'}
-- **Location**: ${agentMetadata.location || 'Not set'}
-- **Address**: ${agentMetadata.gym_address || 'Not set'}
-- **Lead Chaser Name**: ${agentMetadata.lead_chaser_name || 'Not set'}
-
-Use this information when answering questions about the gym, its location, or when the lead asks "where are you based?"`;
-
-        promptWithSops = `${basePrompt}${metadataSection}`;
-      }
-
-      if (!sopsError && agentSops && agentSops.length > 0) {
-        // Process SOPs based on strictness level
-        const exactScripts: Array<{name: string, content: string}> = [];
-        const guidelines: string[] = [];
-        const generalTones: string[] = [];
-
-        agentSops.forEach((item: any) => {
-          const sop = item.sop;
-          if (!sop?.content) return;
-
-          const strictness = sop.strictness_level || 'guideline';
-
-          if (strictness === 'exact_script') {
-            exactScripts.push({
-              name: sop.name,
-              content: sop.content
-            });
-          } else if (strictness === 'guideline') {
-            guidelines.push(sop.content);
-          } else if (strictness === 'general_tone') {
-            generalTones.push(sop.content);
-          }
-        });
-
-        let sopSection = '';
-
-        // Add EXACT SCRIPTS with clear XML structure and examples
-        if (exactScripts.length > 0) {
-          sopSection += `
-<message_templates>
-These are EXACT message templates. You must copy them word-for-word, only replacing placeholders in [brackets].
-
-<template_rules>
-1. Count how many messages YOU have sent in this conversation (not the lead's messages)
-2. For YOUR FIRST message: use the "First message to a new lead" template
-3. For YOUR SECOND message: use the "Second message" template
-4. For YOUR THIRD message: use the "Third message" template
-5. Copy the template EXACTLY, only replacing [lead name], [gym name], [location], etc.
-6. Do NOT add extra words, explanations, or change any wording
-</template_rules>
-
-<examples>
-<example>
-<template>Thanks [lead name], and what is your main goal is it more fitness or fat loss?</template>
-<lead_name>Sarah</lead_name>
-<your_response>Thanks Sarah, and what is your main goal is it more fitness or fat loss?</your_response>
-</example>
-
-<example>
-<template>Hey [lead name]
-
-Its [lead chaser name] at [gym name], just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of [location]?
-
-[lead chaser name]
-[gym name]</template>
-<lead_name>Mike</lead_name>
-<gym_name>Aimee's Place</gym_name>
-<location>York</location>
-<lead_chaser_name>Sam</lead_chaser_name>
-<your_response>Hey Mike
-
-Its Sam at Aimee's Place, just seen your interest in our upcoming programme, can I quickly confirm you live within 15 minutes of York?
-
-Sam
-Aimee's Place</your_response>
-</example>
-</examples>
-
-<templates>
-${exactScripts.map((script, index) => `<template id="${index + 1}" message_number="${index === 0 ? 'first' : index === 1 ? 'second' : 'third'}">
-<name>${script.name}</name>
-<text>${script.content}</text>
-</template>`).join('\n\n')}
-</templates>
-</message_templates>
-
-`;
-        }
-
-        // Add GUIDELINES
-        if (guidelines.length > 0) {
-          sopSection += `
-## GUIDELINES
-
-Follow these procedures closely but adapt to the conversation context:
-
-${guidelines.join('\n\n---\n\n')}
-
-`;
-        }
-
-        // Add GENERAL TONE
-        if (generalTones.length > 0) {
-          sopSection += `
-## GENERAL TONE & STYLE
-
-Use these as general guidance for your responses:
-
-${generalTones.join('\n\n---\n\n')}
-
-`;
-        }
-
-        // Append SOPs to base prompt
-        promptWithSops = `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\n${sopSection}`;
-      }
-
-      // Add self-debugging instructions to prevent hallucinations
-      const finalPrompt = addSelfDebugInstructions(promptWithSops);
-
-      return finalPrompt;
-    } catch (error) {
-      console.error('[Orchestrator] Error loading SOPs:', error);
-      // If SOP loading fails, still add self-debug instructions to base prompt
-      return addSelfDebugInstructions(basePrompt);
-    }
-  }
 
   /**
    * Execute a conversation message with an AI agent
@@ -361,39 +206,17 @@ ${agent.system_prompt}`;
       // Reverse to chronological order (oldest first) for provider execution
       const messages = (messageHistory || []).reverse();
 
-      // 3a. Get allowed tools for agent
+      // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
-      console.log('[Orchestrator] Agent allowed_tools:', allowedTools);
-
-      const allRegisteredTools = this.toolRegistry.getAllTools();
-      console.log('[Orchestrator] All registered tools:', allRegisteredTools.length, 'total');
-      console.log('[Orchestrator] Registered tool IDs:', allRegisteredTools.map(t => t.id).join(', '));
-
       const tools = agent.model.startsWith('gpt-')
         ? this.toolRegistry.getToolsForOpenAI(allowedTools)
         : this.toolRegistry.getToolsForAnthropic(allowedTools);
-      console.log('[Orchestrator] Converted tools for AI:', tools.length, 'tools');
-
-      // Log to database for debugging (temporary)
-      await this.supabase.from('ai_agent_activity_log').insert({
-        agent_id: agent.id,
-        organization_id: organizationId,
-        action_type: 'tool_registry_debug',
-        metadata: {
-          allowed_tools: allowedTools,
-          registered_tools_count: allRegisteredTools.length,
-          registered_tool_ids: allRegisteredTools.map(t => t.id),
-          converted_tools_count: tools.length,
-          model: agent.model
-        }
-      });
 
       // 5. Execute with appropriate provider
       const executionResult = await this.executeConversation(
         agent,
         messages,
-        tools,
-        conversationId
+        tools
       );
 
       if (!executionResult.success) {
@@ -496,8 +319,7 @@ ${agent.system_prompt}`;
   private async executeConversation(
     agent: any,
     messageHistory: any[],
-    tools: any[],
-    conversationId: string
+    tools: any[]
   ): Promise<{
     success: boolean;
     content?: string;
@@ -509,9 +331,9 @@ ${agent.system_prompt}`;
 
     // Determine provider from model
     if (model.startsWith("gpt-")) {
-      return this.executeConversationOpenAI(agent, messageHistory, tools, conversationId);
+      return this.executeConversationOpenAI(agent, messageHistory, tools);
     } else if (model.startsWith("claude-")) {
-      return this.executeConversationAnthropic(agent, messageHistory, tools, conversationId);
+      return this.executeConversationAnthropic(agent, messageHistory, tools);
     } else {
       return {
         success: false,
@@ -527,8 +349,7 @@ ${agent.system_prompt}`;
   private async executeConversationOpenAI(
     agent: any,
     messageHistory: any[],
-    tools: any[],
-    conversationId: string
+    tools: any[]
   ): Promise<{
     success: boolean;
     content?: string;
@@ -537,45 +358,13 @@ ${agent.system_prompt}`;
     error?: string;
   }> {
     const provider = new OpenAIProvider();
-    const MAX_TOOL_ITERATIONS = 10; // Allow complex multi-step analyses (was 5)
+    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
-    // Load system prompt with SOPs and metadata
-    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.metadata);
-
-    // Filter message history to remove incomplete tool call sequences
-    // If an assistant message with tool_calls, we need following tool messages
-    const filteredHistory: any[] = [];
-    for (let i = 0; i < messageHistory.length; i++) {
-      const msg = messageHistory[i];
-
-      // If this is an assistant message with tool_calls
-      if (msg.role === 'assistant' && msg.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
-        // Check if the next messages include tool responses
-        const toolCallIds = msg.tool_calls.map((tc: any) => tc.id);
-        const nextMessages = messageHistory.slice(i + 1);
-        const toolResponses = nextMessages.filter((m: any) => m.role === 'tool' && toolCallIds.includes(m.tool_call_id));
-
-        // Only include if we have all tool responses
-        if (toolResponses.length === toolCallIds.length) {
-          filteredHistory.push(msg);
-        } else {
-          console.log('[Orchestrator] Skipping incomplete tool call sequence from history, removing tool_calls from message');
-          // Include the message but strip tool_calls to prevent OpenAI error
-          filteredHistory.push({
-            ...msg,
-            tool_calls: null
-          });
-        }
-      } else {
-        filteredHistory.push(msg);
-      }
-    }
-
     const messages: any[] = [
-      { role: "system" as const, content: systemPrompt },
-      ...filteredHistory.map((msg) => ({
+      { role: "system" as const, content: agent.system_prompt },
+      ...messageHistory.map((msg) => ({
         role: msg.role as "user" | "assistant" | "system" | "tool",
         content: msg.content || null,
         tool_calls: msg.tool_calls,
@@ -583,59 +372,17 @@ ${agent.system_prompt}`;
       })),
     ];
 
-    console.log('[Orchestrator] Message history:', {
-      originalCount: messageHistory.length,
-      filteredCount: filteredHistory.length,
-      finalMessageCount: messages.length,
-      lastThreeMessages: messages.slice(-3).map(m => ({ role: m.role, content: m.content?.substring(0, 50) }))
-    });
-
-    // Track if we've already called a tool (to prevent infinite loops)
-    let hasCalledTool = false;
-    // Track tool calls that were made (to save to database)
-    let executedToolCalls: any[] | undefined = undefined;
-
     // Tool execution loop: keep calling until no more tool calls or max iterations
     while (iteration < MAX_TOOL_ITERATIONS) {
       iteration++;
-
-      console.log(`[Orchestrator OpenAI] Iteration ${iteration}, calling with ${tools.length} tools`);
-      if (tools.length > 0) {
-        console.log('[Orchestrator OpenAI] Tool names:', tools.map((t: any) => t.function.name));
-      }
-
-      // Determine if we should force tool calling based on message content
-      const lastUserMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
-      const isGreeting = /^(hi|hey|hello|yo|sup|what's up|whats up|good morning|good afternoon|good evening)/i.test(lastUserMessage.trim());
-      const isQuestion = lastUserMessage.includes('?') || /^(what|how|when|where|why|who|show|tell|give|calculate|analyze|get|fetch|find)/i.test(lastUserMessage);
-
-      // Smart tool_choice strategy:
-      // 1. Greetings: always "auto" (can skip tools)
-      // 2. First iteration of data question: "required" (force tool use)
-      // 3. After first tool call: "auto" (allow response without more tools)
-      let toolChoice: "auto" | "required" | undefined = undefined;
-      if (tools.length > 0) {
-        if (isGreeting) {
-          toolChoice = "auto";  // Greetings don't need tools
-        } else if (!hasCalledTool && iteration === 1) {
-          toolChoice = "required";  // Force tool on first iteration for data questions
-        } else {
-          toolChoice = "auto";  // After first tool, let agent decide (usually responds with text)
-        }
-      }
-
-      console.log('[Orchestrator OpenAI] Tool choice strategy:', { iteration, hasCalledTool, isGreeting, isQuestion, toolChoice });
 
       const result = await provider.execute(messages, {
         model: agent.model,
         temperature: agent.temperature ?? 0.7,
         max_tokens: agent.max_tokens ?? 4096,
         tools: tools.length > 0 ? tools : undefined,
-        tool_choice: toolChoice,
+        tool_choice: tools.length > 0 ? "auto" : undefined,
       });
-
-      console.log('[Orchestrator OpenAI] Response has tool calls?', !!result.toolCalls, result.toolCalls?.length || 0);
-      console.log('[Orchestrator OpenAI] Response content:', result.message?.content?.substring(0, 200));
 
       // Accumulate costs
       totalCost = {
@@ -661,7 +408,7 @@ ${agent.system_prompt}`;
         return {
           success: true,
           content: result.message?.content || "",
-          tool_calls: executedToolCalls,  // Return tool calls that were executed earlier
+          tool_calls: undefined,
           cost: totalCost,
         };
       }
@@ -673,22 +420,11 @@ ${agent.system_prompt}`;
         tool_calls: result.toolCalls,
       });
 
-      // Save tool calls for database persistence
-      executedToolCalls = result.toolCalls;
-
       // Execute each tool and add results
-      console.log(`[Orchestrator OpenAI] Executing ${result.toolCalls.length} tool calls...`);
-      hasCalledTool = true;  // Mark that we've executed at least one tool
-
-      // Collect tool results for database storage
-      const toolResultsForDB: any[] = [];
-
       for (const toolCall of result.toolCalls) {
         try {
           const toolName = toolCall.function.name;
           const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
-
-          console.log(`[Orchestrator OpenAI] Executing tool: ${toolName} with args:`, toolArgs);
 
           // Execute tool via registry
           const toolResult = await this.toolRegistry.executeTool(
@@ -701,47 +437,21 @@ ${agent.system_prompt}`;
             }
           );
 
-          console.log(`[Orchestrator OpenAI] Tool ${toolName} result:`, toolResult.success ? 'SUCCESS' : 'FAILED', toolResult.error || '');
-
-          const toolResponse = JSON.stringify(toolResult.data || { error: toolResult.error });
-
-          // Add tool result message to conversation array
+          // Add tool result message
           messages.push({
             role: "tool",
-            content: toolResponse,
+            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
             tool_call_id: toolCall.id,
           });
-
-          // Collect tool result for database storage
-          toolResultsForDB.push({
-            tool_call_id: toolCall.id,
-            tool_name: toolName,
-            result: toolResult.data || { error: toolResult.error },
-          });
-
         } catch (error: any) {
-          const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
-
-          // Add error as tool result to conversation array
+          // Add error as tool result
           messages.push({
             role: "tool",
-            content: errorResponse,
+            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
             tool_call_id: toolCall.id,
-          });
-
-          // Collect error for database storage
-          toolResultsForDB.push({
-            tool_call_id: toolCall.id,
-            tool_name: toolCall.function.name,
-            result: { error: error.message || "Tool execution failed" },
           });
         }
       }
-
-      // Note: Tool results will be saved with the final assistant response
-      // OpenAI requires tool messages to follow assistant messages with tool_calls
-      // So we can't save them as separate messages without breaking the conversation flow
-      console.log('[Orchestrator OpenAI] Tool results collected:', toolResultsForDB.length, 'results');
 
       // Continue loop to get final response
     }
@@ -760,8 +470,7 @@ ${agent.system_prompt}`;
   private async executeConversationAnthropic(
     agent: any,
     messageHistory: any[],
-    tools: any[],
-    conversationId: string
+    tools: any[]
   ): Promise<{
     success: boolean;
     content?: string;
@@ -770,12 +479,9 @@ ${agent.system_prompt}`;
     error?: string;
   }> {
     const provider = new AnthropicProvider();
-    const MAX_TOOL_ITERATIONS = 10; // Allow complex multi-step analyses (was 5)
+    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
-
-    // Load system prompt with SOPs and metadata
-    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.metadata);
 
     const messages: any[] = messageHistory
       .filter((msg) => msg.role !== "system")
@@ -807,7 +513,7 @@ ${agent.system_prompt}`;
         model: agent.model,
         temperature: agent.temperature ?? 0.7,
         max_tokens: agent.max_tokens ?? 4096,
-        system: systemPrompt,
+        system: agent.system_prompt,
         tools: tools.length > 0 ? tools : undefined,
       });
 
@@ -877,30 +583,19 @@ ${agent.system_prompt}`;
             }
           );
 
-          const toolResponse = JSON.stringify(toolResult.data || { error: toolResult.error });
-
           // Add tool result in Anthropic format
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolUse.id,
-            content: toolResponse,
+            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
           });
-
-          // Note: Tool responses for Anthropic are saved as part of the conversation flow
-          // They don't need separate database rows
-
         } catch (error: any) {
-          const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
-
           // Add error as tool result
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolUse.id,
-            content: errorResponse,
+            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
           });
-
-          // Note: Tool errors are also included in the conversation flow
-          // They don't need separate database storage
         }
       }
 

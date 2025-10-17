@@ -202,7 +202,7 @@ export class GenerateChurnReportTool extends BaseTool {
           cancellation_reason,
           membership_plans(name, category)
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .or(`start_date.gte.${startDate},end_date.gte.${startDate}`)
         .lte('start_date', endDate);
 
@@ -310,7 +310,7 @@ export class GenerateLTVReportTool extends BaseTool {
           source,
           payments(amount, payment_date, payment_status)
         `)
-        .eq('org_id', context.organizationId);
+        .eq('organization_id', context.organizationId);
 
       if (error) throw error;
 
@@ -446,7 +446,7 @@ export class GenerateLTVReportTool extends BaseTool {
 export class GenerateMonthlyTurnoverReportTool extends BaseTool {
   id = 'generate_monthly_turnover_report';
   name = 'Generate Monthly Turnover Report';
-  description = 'Generate detailed monthly turnover report showing ACTUAL completed payments (historical) and ACTUAL scheduled payments (future) from the database. This is NOT an AI prediction - all revenue numbers come directly from payment records. Use completedRevenue for past months and scheduledRevenue for future months.';
+  description = 'Generate detailed monthly turnover report with category breakdown, trends, and year-over-year comparisons';
   category: 'analytics' = 'analytics';
 
   parametersSchema = z.object({
@@ -470,31 +470,25 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
       startDate.setMonth(startDate.getMonth() - params.months);
       const startDateString = startDate.toISOString().split('T')[0];
 
-      // Fetch completed payments for historical data
-      const { data: completedPayments, error: completedError } = await supabase
+      // Fetch payments
+      const { data: payments, error } = await supabase
         .from('payments')
-        .select('payment_date, amount, client_id, description, metadata')
+        .select(`
+          payment_date,
+          amount,
+          client_id,
+          customer_memberships(
+            membership_plans(
+              category
+            )
+          )
+        `)
         .eq('organization_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
         .gte('payment_date', startDateString)
         .order('payment_date', { ascending: false });
 
-      if (completedError) throw completedError;
-
-      // Fetch scheduled payments for future revenue forecast
-      const today = new Date().toISOString().split('T')[0];
-      const { data: scheduledPayments, error: scheduledError } = await supabase
-        .from('payments')
-        .select('payment_date, amount, client_id, description, metadata')
-        .eq('organization_id', context.organizationId)
-        .eq('payment_status', 'scheduled')
-        .gte('payment_date', today)
-        .order('payment_date');
-
-      if (scheduledError) throw scheduledError;
-
-      // Combine completed + scheduled payments
-      const payments = [...(completedPayments || []), ...(scheduledPayments || [])];
+      if (error) throw error;
 
       // Group by month
       const grouped = new Map<string, {
@@ -525,20 +519,11 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
         group.paymentCount++;
         if (payment.client_id) group.uniqueCustomers.add(payment.client_id);
 
-        // Categorize based on description or default to 'Membership'
-        let category = 'Membership';
-        if (payment.description) {
-          if (/trial|intro|guest/i.test(payment.description)) category = 'Trial';
-          else if (/class|session|drop.?in/i.test(payment.description)) category = 'Classes';
-          else if (/pt|personal.?training/i.test(payment.description)) category = 'Personal Training';
-          else if (/retail|merchandise|product/i.test(payment.description)) category = 'Retail';
-        }
+        const category = (payment.customer_memberships as any)?.membership_plans?.category || 'Uncategorized';
         group.categories.set(category, (group.categories.get(category) || 0) + amount);
       });
 
-      // Convert to array and mark scheduled vs completed
-      const currentPeriod = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-
+      // Convert to array
       const periods = Array.from(grouped.values())
         .map(g => ({
           period: g.period,
@@ -546,19 +531,12 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
           paymentCount: g.paymentCount,
           uniqueCustomers: g.uniqueCustomers.size,
           categoryBreakdown: Object.fromEntries(g.categories),
-          isScheduled: g.period > currentPeriod, // Future months have scheduled payments
-          status: g.period > currentPeriod ? 'scheduled' : 'completed', // Clear status
         }))
-        .sort((a, b) => a.period.localeCompare(b.period)); // Chronological order
+        .sort((a, b) => b.period.localeCompare(a.period));
 
-      // Calculate metrics (split completed vs scheduled)
-      const completedPeriods = periods.filter(p => !p.isScheduled);
-      const scheduledPeriods = periods.filter(p => p.isScheduled);
-
+      // Calculate metrics
       const totalRevenue = periods.reduce((sum, p) => sum + p.revenue, 0);
-      const completedRevenue = completedPeriods.reduce((sum, p) => sum + p.revenue, 0);
-      const scheduledRevenue = scheduledPeriods.reduce((sum, p) => sum + p.revenue, 0);
-      const avgMonthlyRevenue = completedPeriods.length > 0 ? completedRevenue / completedPeriods.length : 0;
+      const avgMonthlyRevenue = periods.length > 0 ? totalRevenue / periods.length : 0;
 
       return {
         success: true,
@@ -566,20 +544,13 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
           periods,
           summary: {
             totalRevenue,
-            completedRevenue,
-            scheduledRevenue,
             avgMonthlyRevenue,
             totalPayments: periods.reduce((sum, p) => sum + p.paymentCount, 0),
-            completedMonths: completedPeriods.length,
-            scheduledMonths: scheduledPeriods.length,
             months: params.months,
           },
-          note: 'Scheduled revenue is based on actual scheduled payments in the database, not AI predictions.',
         },
         metadata: {
           recordsAffected: payments?.length || 0,
-          completedPayments: completedPayments?.length || 0,
-          scheduledPayments: scheduledPayments?.length || 0,
           executionTimeMs: Date.now() - startTime,
         },
       };
@@ -626,7 +597,7 @@ export class CalculateMRRTool extends BaseTool {
           status,
           membership_plans(name, category, billing_period)
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', asOfDate)
         .or(`end_date.is.null,end_date.gt.${asOfDate}`);
@@ -708,7 +679,7 @@ export class CalculateARRTool extends BaseTool {
           start_date,
           membership_plans(name, category)
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', asOfDate)
         .or(`end_date.is.null,end_date.gt.${asOfDate}`);
@@ -727,7 +698,7 @@ export class CalculateARRTool extends BaseTool {
       const { data: lastYearMemberships } = await supabase
         .from('customer_memberships')
         .select('monthly_price')
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', lastYearDateString)
         .or(`end_date.is.null,end_date.gt.${lastYearDateString}`);
@@ -795,7 +766,7 @@ export class AnalyzePaymentTrendsTool extends BaseTool {
         .eq('organization_id', context.organizationId)
         .gte('payment_date', params.startDate)
         .lte('payment_date', params.endDate)
-        .order('payment_date', { ascending: true});
+        .order('payment_date', { ascending: true });
 
       if (error) throw error;
 
@@ -901,7 +872,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
           current_bookings,
           programs(name, program_type)
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .gte('start_time', params.startDate)
         .lte('start_time', params.endDate);
 
@@ -1054,13 +1025,14 @@ export class AnalyzeMemberEngagementTool extends BaseTool {
           status,
           bookings!inner(
             id,
-            created_at,
-            status
+            booking_time,
+            attended_at,
+            booking_status
           )
         `)
-        .eq('org_id', context.organizationId)
-        .gte('bookings.created_at', params.startDate)
-        .lte('bookings.created_at', params.endDate);
+        .eq('organization_id', context.organizationId)
+        .gte('bookings.booking_time', params.startDate)
+        .lte('bookings.booking_time', params.endDate);
 
       if (error) throw error;
 
@@ -1074,7 +1046,7 @@ export class AnalyzeMemberEngagementTool extends BaseTool {
 
       const clientEngagement = clients?.map(client => {
         const bookings = (client.bookings as any[]) || [];
-        const attended = bookings.filter(b => b.status === 'attended').length;
+        const attended = bookings.filter(b => b.attended_at).length;
 
         let level: keyof typeof engagementLevels;
         if (attended >= 8) level = 'high';
@@ -1164,17 +1136,18 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
         .from('bookings')
         .select(`
           id,
-          client_id,
-          created_at,
-          status,
+          customer_id,
+          booking_time,
+          attended_at,
+          booking_status,
           class_sessions!inner(
             start_time,
-            name
+            programs(name)
           )
         `)
-        .eq('organization_id', context.organizationId)
-        .gte('created_at', params.startDate)
-        .lte('created_at', params.endDate);
+        .eq('booking_status', 'confirmed')
+        .gte('booking_time', params.startDate)
+        .lte('booking_time', params.endDate);
 
       if (error) throw error;
 
@@ -1185,33 +1158,33 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
       ) || [];
 
       const totalBookings = pastBookings.length;
-      const noShows = pastBookings.filter(b => b.status === 'no_show').length;
+      const noShows = pastBookings.filter(b => !b.attended_at).length;
       const noShowRate = totalBookings > 0 ? (noShows / totalBookings) * 100 : 0;
 
       // Identify repeat offenders
-      const clientNoShows = new Map<string, number>();
+      const customerNoShows = new Map<string, number>();
       pastBookings.forEach(booking => {
-        if (booking.status === 'no_show') {
-          const count = clientNoShows.get(booking.client_id) || 0;
-          clientNoShows.set(booking.client_id, count + 1);
+        if (!booking.attended_at) {
+          const count = customerNoShows.get(booking.customer_id) || 0;
+          customerNoShows.set(booking.customer_id, count + 1);
         }
       });
 
-      const repeatOffenders = Array.from(clientNoShows.entries())
+      const repeatOffenders = Array.from(customerNoShows.entries())
         .filter(([_, count]) => count >= 3)
-        .map(([clientId, count]) => ({ clientId, noShowCount: count }))
+        .map(([customerId, count]) => ({ customerId, noShowCount: count }))
         .sort((a, b) => b.noShowCount - a.noShowCount);
 
-      // No-shows by class type
-      const classTypeNoShows = new Map<string, { total: number; noShows: number }>();
+      // No-shows by program
+      const programNoShows = new Map<string, { total: number; noShows: number }>();
       pastBookings.forEach(booking => {
-        const className = (booking.class_sessions as any)?.name || 'Unknown';
-        if (!classTypeNoShows.has(className)) {
-          classTypeNoShows.set(className, { total: 0, noShows: 0 });
+        const program = (booking.class_sessions as any)?.programs?.name || 'Unknown';
+        if (!programNoShows.has(program)) {
+          programNoShows.set(program, { total: 0, noShows: 0 });
         }
-        const stats = classTypeNoShows.get(className)!;
+        const stats = programNoShows.get(program)!;
         stats.total++;
-        if (booking.status === 'no_show') stats.noShows++;
+        if (!booking.attended_at) stats.noShows++;
       });
 
       return {
@@ -1224,8 +1197,8 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
             noShowRate,
             attendanceRate: 100 - noShowRate,
           },
-          byClassType: Array.from(classTypeNoShows.entries()).map(([className, stats]) => ({
-            className,
+          byProgram: Array.from(programNoShows.entries()).map(([program, stats]) => ({
+            program,
             totalBookings: stats.total,
             noShows: stats.noShows,
             noShowRate: stats.total > 0 ? (stats.noShows / stats.total) * 100 : 0,
@@ -1287,8 +1260,8 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
           ),
           bookings(
             id,
-            created_at,
-            status
+            booking_time,
+            attended_at
           ),
           payments(
             id,
@@ -1296,7 +1269,7 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
             payment_status
           )
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .eq('customer_memberships.status', 'active');
 
       if (error) throw error;
@@ -1309,11 +1282,11 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
         const payments = (client.payments as any[]) || [];
 
         const recentBookings = bookings.filter(b =>
-          new Date(b.created_at) >= cutoffDate
+          new Date(b.booking_time) >= cutoffDate
         );
 
         const recentAttendance = bookings.filter(b =>
-          b.status === 'attended' && new Date(b.created_at) >= cutoffDate
+          b.attended_at && new Date(b.attended_at) >= cutoffDate
         );
 
         const recentPayments = payments.filter(p =>
@@ -1351,7 +1324,7 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
           riskLevel: riskScore >= 70 ? 'high' : riskScore >= 40 ? 'medium' : 'low',
           reasons,
           lastActivity: Math.max(
-            ...bookings.map(b => new Date(b.created_at).getTime()),
+            ...bookings.map(b => new Date(b.booking_time).getTime()),
             0
           ),
           recentBookings: recentBookings.length,
@@ -1424,21 +1397,20 @@ export class GenerateOperationsReportTool extends BaseTool {
         supabase
           .from('class_sessions')
           .select('id, start_time, max_capacity, current_bookings, session_status')
-          .eq('org_id', context.organizationId)
+          .eq('organization_id', context.organizationId)
           .gte('start_time', params.startDate)
           .lte('start_time', params.endDate),
 
         supabase
           .from('bookings')
-          .select('id, status, created_at')
-          .eq('organization_id', context.organizationId)
-          .gte('created_at', params.startDate)
-          .lte('created_at', params.endDate),
+          .select('id, booking_status, attended_at, booking_time')
+          .gte('booking_time', params.startDate)
+          .lte('booking_time', params.endDate),
 
         supabase
           .from('clients')
           .select('id, created_at, status')
-          .eq('org_id', context.organizationId),
+          .eq('organization_id', context.organizationId),
 
         supabase
           .from('payments')
@@ -1453,9 +1425,9 @@ export class GenerateOperationsReportTool extends BaseTool {
       const totalBookings = sessions?.reduce((sum, s) => sum + (s.current_bookings || 0), 0) || 0;
       const utilizationRate = totalCapacity > 0 ? (totalBookings / totalCapacity) * 100 : 0;
 
-      const totalBookingsCount = bookings?.length || 0;
-      const attended = bookings?.filter(b => b.status === 'attended').length || 0;
-      const attendanceRate = totalBookingsCount > 0 ? (attended / totalBookingsCount) * 100 : 0;
+      const confirmedBookings = bookings?.filter(b => b.booking_status === 'confirmed').length || 0;
+      const attended = bookings?.filter(b => b.attended_at).length || 0;
+      const attendanceRate = confirmedBookings > 0 ? (attended / confirmedBookings) * 100 : 0;
 
       const newMembers = members?.filter(m =>
         new Date(m.created_at) >= new Date(params.startDate) &&
@@ -1618,17 +1590,17 @@ export class GetClientAttendanceTool extends BaseTool {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - params.periodDays);
 
-      // Get attendance records - use bookings table (primary), not class_bookings
+      // Get attendance records
       const { data: bookings, error: bookingsError } = await supabase
-        .from('bookings')
+        .from('class_bookings')
         .select(`
           id,
-          status,
+          booking_status,
           created_at,
           class_sessions(
             id,
             start_time,
-            name
+            class_types(name)
           )
         `)
         .eq('client_id', client.id)
@@ -1638,10 +1610,10 @@ export class GetClientAttendanceTool extends BaseTool {
       if (bookingsError) throw bookingsError;
 
       const total = bookings?.length || 0;
-      const attended = bookings?.filter(b => b.status === 'attended').length || 0;
-      const noShows = bookings?.filter(b => b.status === 'no_show').length || 0;
-      const cancelled = bookings?.filter(b => b.status === 'cancelled').length || 0;
-      const upcoming = bookings?.filter(b => b.status === 'confirmed').length || 0;
+      const attended = bookings?.filter(b => b.booking_status === 'attended').length || 0;
+      const noShows = bookings?.filter(b => b.booking_status === 'no_show').length || 0;
+      const cancelled = bookings?.filter(b => b.booking_status === 'cancelled').length || 0;
+      const upcoming = bookings?.filter(b => b.booking_status === 'confirmed').length || 0;
 
       return {
         success: true,

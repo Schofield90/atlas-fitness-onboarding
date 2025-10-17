@@ -32,7 +32,7 @@ import WaiversTab from "@/app/components/customers/tabs/WaiversTab";
 import ClassBookingsTab from "@/app/components/customers/tabs/ClassBookingsTab";
 import ComprehensiveMessagingTab from "@/app/components/customers/tabs/ComprehensiveMessagingTab";
 import NutritionTab from "@/app/components/customers/tabs/NutritionTab";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 
 interface CustomerProfile {
   id: string;

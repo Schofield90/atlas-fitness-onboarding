@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import PageBuilder from "@/app/components/landing-builder/PageBuilder";
-import toast from "@/lib/toast";
+import toast from "@/app/lib/toast";
 
 export default function EditAdminLandingPage() {
   const router = useRouter();

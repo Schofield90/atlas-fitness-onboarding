@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { Card } from '@/app/components/ui/Card'
 import Button from '@/app/components/ui/Button'
 import { Copy, ExternalLink, CheckCircle, CreditCard, Building2 } from 'lucide-react'
-import { formatBritishCurrency } from '@/lib/utils/british-format'
+import { formatBritishCurrency } from '@/app/lib/utils/british-format'
 
 interface Product {
   id: string

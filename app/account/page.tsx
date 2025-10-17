@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/app/lib/supabase/client';
 import { MapPin, User, Building, Bell, Shield, CreditCard, Save, Loader2 } from 'lucide-react';
 
 export default function AccountPage() {

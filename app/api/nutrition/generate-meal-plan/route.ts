@@ -1,0 +1,305 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/lib/supabase/server";
+import { generateMealPlan } from "@/app/lib/openai";
+import { generatePersonalizedMealPlan } from "@/app/lib/nutrition/personalized-ai";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    // Check authentication
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    const {
+      nutritionProfile,
+      profileId,
+      preferences,
+      daysToGenerate = 7,
+      usePersonalizedAI = true, // Default to using personalized AI
+    } = await request.json();
+
+    // Support both nutritionProfile object or profileId
+    let profile = nutritionProfile;
+
+    if (!profile && profileId) {
+      // Fetch the profile with preferences if only ID was provided
+      const { data: fetchedProfile, error: profileError } = await supabase
+        .from("nutrition_profiles")
+        .select("*, preferences, dietary_preferences")
+        .eq("id", profileId)
+        .single();
+
+      if (profileError || !fetchedProfile) {
+        return NextResponse.json(
+          { success: false, error: "Nutrition profile not found" },
+          { status: 404 },
+        );
+      }
+      profile = fetchedProfile;
+    }
+
+    // Always fetch stored preferences for the client
+    let storedPreferences = {};
+    if (profile?.client_id) {
+      const { data: prefData } = await supabase
+        .from("nutrition_profiles")
+        .select("preferences, dietary_preferences")
+        .eq("client_id", profile.client_id)
+        .single();
+
+      if (prefData) {
+        // Properly merge ALL preferences from both columns
+        const dietaryPrefs = prefData.dietary_preferences || {};
+        const basePrefs = prefData.preferences || {};
+
+        storedPreferences = {
+          // Start with all base preferences
+          ...basePrefs,
+          // Override with dietary preferences where they exist
+          dietary_restrictions:
+            dietaryPrefs.restrictions || basePrefs.dietary_restrictions || [],
+          allergies: dietaryPrefs.allergies || basePrefs.allergies || [],
+          cooking_skill:
+            dietaryPrefs.cooking_skill ||
+            basePrefs.cooking_skill ||
+            "intermediate",
+          time_availability:
+            dietaryPrefs.time_availability ||
+            basePrefs.time_availability ||
+            "moderate",
+          // Ensure all other preference fields are included
+          favorite_foods: basePrefs.favorite_foods || [],
+          disliked_foods: basePrefs.disliked_foods || [],
+          cultural_preferences: basePrefs.cultural_preferences || "",
+          specific_goals: basePrefs.specific_goals || "",
+          meal_timings: basePrefs.meal_timings || {},
+          kitchen_equipment: basePrefs.kitchen_equipment || [],
+          shopping_preferences: basePrefs.shopping_preferences || "",
+        };
+
+        console.log(
+          "[MealPlan] Retrieved stored preferences:",
+          storedPreferences,
+        );
+      }
+    }
+
+    // Merge stored preferences with any passed preferences
+    const mergedPreferences = {
+      ...storedPreferences,
+      ...preferences,
+    };
+
+    if (!profile) {
+      return NextResponse.json(
+        { success: false, error: "Nutrition profile is required" },
+        { status: 400 },
+      );
+    }
+
+    // Generate meal plan using personalized AI if preferences exist
+    console.log("Generating AI meal plan with preferences:", {
+      hasStoredPreferences: Object.keys(storedPreferences).length > 0,
+      usePersonalizedAI,
+      allergies: mergedPreferences.allergies,
+      dietary_restrictions: mergedPreferences.dietary_restrictions,
+      favorite_foods: mergedPreferences.favorite_foods,
+      disliked_foods: mergedPreferences.disliked_foods,
+      cultural_preferences: mergedPreferences.cultural_preferences,
+    });
+
+    // Generate meal plan with longer timeout for Vercel (max 60s for Pro)
+    let mealPlanData;
+    try {
+      // Set a timeout slightly below Vercel's limit
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Meal plan generation timeout")),
+          58000, // 58 seconds (below Vercel's 60s limit)
+        ),
+      );
+
+      // Use personalized AI if preferences exist
+      if (usePersonalizedAI && Object.keys(mergedPreferences).length > 0) {
+        // Generate personalized meals for each day
+        const mealTypes = ["breakfast", "lunch", "dinner"];
+        const weekPlan: any = {};
+
+        for (let day = 1; day <= daysToGenerate; day++) {
+          const dayKey = `day_${day}`;
+          weekPlan[dayKey] = {};
+
+          for (const mealType of mealTypes) {
+            try {
+              const meal = await generatePersonalizedMealPlan(
+                mergedPreferences,
+                profile,
+                mealType as any,
+                `Day ${day}`,
+              );
+              weekPlan[dayKey][mealType] = meal;
+            } catch (mealError) {
+              console.error(
+                `Error generating ${mealType} for Day ${day}:`,
+                mealError,
+              );
+              // Provide a fallback meal on error
+              weekPlan[dayKey][mealType] = {
+                name: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} - Day ${day}`,
+                description: "Custom meal based on your preferences",
+                ingredients: [],
+                instructions: ["Meal generation failed, please regenerate"],
+                nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+              };
+            }
+          }
+        }
+
+        mealPlanData = {
+          meal_plan: weekPlan,
+          shopping_list: "Generated based on personalized meals",
+          meal_prep_tips: ["Meals are personalized to your preferences"],
+        };
+      } else {
+        // Fall back to standard generation
+        mealPlanData = await Promise.race([
+          generateMealPlan(profile, mergedPreferences, daysToGenerate),
+          timeoutPromise,
+        ]);
+      }
+
+      if (!mealPlanData || !mealPlanData.meal_plan) {
+        throw new Error("Invalid meal plan data generated");
+      }
+    } catch (error: any) {
+      console.error("Meal plan generation error:", error.message);
+
+      // Check if it's a timeout or other error
+      const isTimeout = error.message.includes("timeout");
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: isTimeout
+            ? "Meal plan generation is taking longer than expected. Please try again with fewer days."
+            : "Failed to generate meal plan. Please try again.",
+          details: isTimeout
+            ? `Try generating ${Math.max(1, Math.floor(daysToGenerate / 2))} days instead of ${daysToGenerate} days.`
+            : error.message,
+        },
+        { status: 503 },
+      );
+    }
+
+    // Transform the meal plan data into the format expected by the database
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + daysToGenerate);
+
+    const mealPlan = {
+      id: crypto.randomUUID(),
+      profile_id: profile.id,
+      client_id: profile.client_id,
+      organization_id: profile.organization_id,
+      name: `${daysToGenerate}-Day AI Meal Plan`,
+      description: `Personalized meal plan with ${profile.target_calories} calories, ${profile.protein_grams}g protein`,
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+      status: "active", // Using status instead of is_active
+      duration_days: daysToGenerate,
+      meals_per_day: profile.meals_per_day || 3,
+      // Daily totals
+      daily_calories: profile.target_calories,
+      daily_protein: profile.protein_grams,
+      daily_carbs: profile.carbs_grams,
+      daily_fat: profile.fat_grams,
+      daily_fiber: profile.fiber_grams || 25,
+      // Aggregate totals
+      total_calories: profile.target_calories * daysToGenerate,
+      total_protein: profile.protein_grams * daysToGenerate,
+      total_carbs: profile.carbs_grams * daysToGenerate,
+      total_fat: profile.fat_grams * daysToGenerate,
+      // AI metadata
+      ai_model: "gpt-3.5-turbo",
+      generation_params: {
+        daysToGenerate,
+        preferences: mergedPreferences,
+        usePersonalizedAI,
+        hasStoredPreferences: Object.keys(storedPreferences).length > 0,
+      },
+      // Meal data - support both formats
+      meal_data: {
+        ...mealPlanData.meal_plan,
+        week_plan: Object.entries(mealPlanData.meal_plan || {}).map(
+          ([key, dayData]: [string, any]) => ({
+            day: key.replace("day_", "Day "),
+            ...dayData,
+          }),
+        ),
+        shopping_list: mealPlanData.shopping_list,
+        meal_prep_tips: mealPlanData.meal_prep_tips,
+      },
+      shopping_list: mealPlanData.shopping_list,
+      meal_prep_tips: mealPlanData.meal_prep_tips,
+      created_at: new Date().toISOString(),
+    };
+
+    // Check if there's already an active meal plan and deactivate it
+    const { data: existingPlan } = await supabase
+      .from("meal_plans")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .eq("status", "active")
+      .single();
+
+    if (existingPlan) {
+      await supabase
+        .from("meal_plans")
+        .update({ status: "archived" })
+        .eq("id", existingPlan.id);
+    }
+
+    // Save the new meal plan to database
+    const { data: newPlan, error: planError } = await supabase
+      .from("meal_plans")
+      .insert(mealPlan)
+      .select()
+      .single();
+
+    if (planError) {
+      console.error("Error saving meal plan:", planError);
+      // Return the generated plan even if save fails
+      return NextResponse.json({
+        success: true,
+        data: mealPlan,
+        warning: "Meal plan generated but not saved to database",
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: newPlan || mealPlan,
+      message: "AI meal plan generated successfully",
+    });
+  } catch (error: any) {
+    console.error("Error generating meal plan:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to generate meal plan",
+      },
+      { status: 500 },
+    );
+  }
+}

@@ -2,8 +2,8 @@
 
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { formatBritishCurrency, formatBritishDate } from '@/lib/utils/british-format'
+import { createClient } from '@/app/lib/supabase/client'
+import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
 import { Trash2, Edit2, Tag } from 'lucide-react'
 
 interface DiscountCode {

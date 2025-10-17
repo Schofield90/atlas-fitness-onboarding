@@ -3,7 +3,7 @@ import { act } from "react-dom/test-utils";
 import "@testing-library/jest-dom";
 import AddMembershipModal from "@/app/components/customers/AddMembershipModal";
 import MembershipsTab from "@/app/components/customers/tabs/MembershipsTab";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 
 // Mock Supabase client
 jest.mock("@/app/lib/supabase/client", () => ({

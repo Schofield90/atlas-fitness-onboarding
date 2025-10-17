@@ -1,0 +1,1301 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  User,
+  Target,
+  Activity,
+  Utensils,
+  ChevronRight,
+  ChevronLeft,
+  Calculator,
+  Info,
+  Check,
+  AlertCircle,
+} from "lucide-react";
+import { createClient } from "@/app/lib/supabase/client";
+
+interface NutritionSetupProps {
+  client: any;
+  onComplete: (profile: any) => void;
+  existingProfile?: any;
+}
+
+// Unit conversion helpers
+const convertHeight = (formData: any): number => {
+  if (formData.heightUnit === "ft") {
+    const feet = parseFloat(formData.heightFt) || 0;
+    const inches = parseFloat(formData.heightIn) || 0;
+    return Math.round(feet * 30.48 + inches * 2.54); // Convert to cm
+  }
+  return parseFloat(formData.height) || 0;
+};
+
+const convertWeight = (formData: any): number => {
+  if (formData.weightUnit === "lbs") {
+    return parseFloat(formData.weightLbs) * 0.453592; // Convert to kg
+  } else if (formData.weightUnit === "stone") {
+    const stone = parseFloat(formData.weightStone) || 0;
+    const lbs = parseFloat(formData.weightStoneLbs) || 0;
+    return stone * 6.35029 + lbs * 0.453592; // Convert to kg
+  }
+  return parseFloat(formData.weight) || 0;
+};
+
+// BMR calculation using Mifflin-St Jeor formula
+const calculateBMR = (
+  weight: number,
+  height: number,
+  age: number,
+  gender: string,
+): number => {
+  if (gender === "male") {
+    return Math.round(10 * weight + 6.25 * height - 5 * age + 5);
+  } else {
+    return Math.round(10 * weight + 6.25 * height - 5 * age - 161);
+  }
+};
+
+// TDEE calculation based on activity level
+const calculateTDEE = (bmr: number, activityLevel: string): number => {
+  const multipliers: { [key: string]: number } = {
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+    extra_active: 1.9,
+  };
+  return Math.round(bmr * multipliers[activityLevel]);
+};
+
+// Calculate target calories based on goal
+const calculateTargetCalories = (
+  tdee: number,
+  goal: string,
+  weeklyChange: number = 0.5,
+): number => {
+  const dailyDeficitSurplus = (weeklyChange * 7700) / 7; // 7700 cal = 1kg fat
+
+  switch (goal) {
+    case "lose_weight":
+      return Math.round(tdee - dailyDeficitSurplus);
+    case "gain_muscle":
+      return Math.round(tdee + dailyDeficitSurplus * 0.5); // More conservative for muscle gain
+    case "maintain":
+    default:
+      return tdee;
+  }
+};
+
+export default function NutritionSetup({
+  client,
+  onComplete,
+  existingProfile,
+}: NutritionSetupProps) {
+  // If we have an existing profile with calculated values, start from step 1 to allow editing
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const supabase = createClient();
+
+  // Form data
+  // Helper function to convert activity level from database format to form format
+  const convertActivityLevel = (dbLevel: string): string => {
+    const mapping: Record<string, string> = {
+      SEDENTARY: "sedentary",
+      LIGHTLY_ACTIVE: "lightly_active",
+      MODERATELY_ACTIVE: "moderately_active",
+      VERY_ACTIVE: "very_active",
+      EXTRA_ACTIVE: "extra_active",
+      EXTREMELY_ACTIVE: "extra_active",
+    };
+    return mapping[dbLevel] || dbLevel?.toLowerCase() || "moderately_active";
+  };
+
+  // Helper function to convert goal from database format to form format
+  const convertGoal = (dbGoal: string): string => {
+    const mapping: Record<string, string> = {
+      LOSE_WEIGHT: "lose_weight",
+      MAINTAIN: "maintain",
+      GAIN_MUSCLE: "gain_muscle",
+      BUILD_MUSCLE: "gain_muscle",
+    };
+    return mapping[dbGoal] || dbGoal?.toLowerCase() || "maintain";
+  };
+
+  // Helper function to convert cooking time from database format to form format
+  const convertCookingTime = (dbTime: string): string => {
+    const mapping: Record<string, string> = {
+      MINIMAL: "quick",
+      MODERATE: "moderate",
+      EXTENSIVE: "extensive",
+    };
+    return mapping[dbTime] || dbTime?.toLowerCase() || "moderate";
+  };
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string | null): number => {
+    if (!dateOfBirth) return 0;
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+    return age;
+  };
+
+  // Initialize form data with existing profile or client data
+  const initializeFormData = () => {
+    // Pull from client profile first, then existing nutrition profile
+    const heightCm =
+      client?.height_cm ||
+      existingProfile?.height ||
+      existingProfile?.height_cm ||
+      "";
+    const weightKg =
+      client?.weight_kg ||
+      existingProfile?.current_weight ||
+      existingProfile?.weight_kg ||
+      "";
+
+    // Calculate age from client's date of birth if available
+    const calculatedAge = client?.date_of_birth
+      ? calculateAge(client.date_of_birth)
+      : existingProfile?.age || "";
+
+    // Get goal from client profile or existing nutrition profile
+    const fitnessGoal =
+      client?.fitness_goal || existingProfile?.goal || "maintain";
+
+    return {
+      // Basic stats - prioritize client profile data
+      height: heightCm,
+      weight: weightKg,
+      heightFt: "",
+      heightIn: "",
+      weightLbs: weightKg ? (parseFloat(weightKg) * 2.20462).toFixed(1) : "",
+      weightStone: "",
+      weightStoneLbs: "",
+      heightUnit: "cm" as "cm" | "ft",
+      weightUnit: "kg" as "kg" | "lbs" | "stone",
+      age: calculatedAge,
+      gender:
+        existingProfile?.sex?.toLowerCase() ||
+        existingProfile?.gender?.toLowerCase() ||
+        "male",
+      activityLevel: convertActivityLevel(existingProfile?.activity_level),
+
+      // Goals - use client fitness goal or existing profile goal
+      goal: convertGoal(fitnessGoal),
+      targetWeight:
+        existingProfile?.goal_weight || existingProfile?.target_weight_kg || "",
+      weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
+
+      // Calculated values - load from existing profile if available
+      bmr: existingProfile?.bmr || 0,
+      tdee: existingProfile?.tdee || 0,
+      targetCalories:
+        existingProfile?.target_calories ||
+        existingProfile?.daily_calories ||
+        0,
+
+      // Macros - load from existing profile if available
+      proteinGrams:
+        existingProfile?.protein_grams || existingProfile?.target_protein || 0,
+      carbsGrams:
+        existingProfile?.carbs_grams || existingProfile?.target_carbs || 0,
+      fatGrams: existingProfile?.fat_grams || existingProfile?.target_fat || 0,
+      proteinPercent: 30,
+      carbsPercent: 40,
+      fatPercent: 30,
+
+      // Meal preferences - hardcoded to 3 meals + 2 snacks
+      mealsPerDay: 3,
+      snacksPerDay: 2,
+
+      // Food preferences - load from existing profile
+      dietaryType: existingProfile?.dietary_preferences?.[0] || "",
+      allergies: existingProfile?.allergies || [],
+      intolerances: existingProfile?.intolerances || [],
+      likedFoods: existingProfile?.food_likes || [],
+      dislikedFoods: existingProfile?.food_dislikes || [],
+      cookingTime: convertCookingTime(existingProfile?.cooking_time),
+      cookingSkill: existingProfile?.cooking_skill || "intermediate",
+    };
+  };
+
+  const [formData, setFormData] = useState(initializeFormData());
+
+  // Update form data when existingProfile changes
+  useEffect(() => {
+    if (existingProfile) {
+      setFormData(initializeFormData());
+    }
+  }, [existingProfile]);
+
+  // Calculate macro percentages from existing values if available
+  useEffect(() => {
+    if (existingProfile && existingProfile.target_calories > 0) {
+      const totalCalories =
+        existingProfile.target_calories || existingProfile.daily_calories;
+      const proteinGrams =
+        existingProfile.protein_grams || existingProfile.target_protein;
+      const carbsGrams =
+        existingProfile.carbs_grams || existingProfile.target_carbs;
+      const fatGrams = existingProfile.fat_grams || existingProfile.target_fat;
+
+      if (proteinGrams && carbsGrams && fatGrams && totalCalories) {
+        // Calculate percentages from existing grams
+        const proteinPercent = Math.round(
+          ((proteinGrams * 4) / totalCalories) * 100,
+        );
+        const carbsPercent = Math.round(
+          ((carbsGrams * 4) / totalCalories) * 100,
+        );
+        const fatPercent = Math.round(((fatGrams * 9) / totalCalories) * 100);
+
+        setFormData((prev) => ({
+          ...prev,
+          proteinPercent: proteinPercent || 30,
+          carbsPercent: carbsPercent || 40,
+          fatPercent: fatPercent || 30,
+        }));
+      }
+    }
+  }, [existingProfile]);
+
+  // Recalculate when units or values change
+  useEffect(() => {
+    if (step >= 2) {
+      updateCalculations();
+    }
+  }, [
+    formData.heightUnit,
+    formData.weightUnit,
+    formData.height,
+    formData.weight,
+    formData.heightFt,
+    formData.heightIn,
+    formData.weightLbs,
+    formData.weightStone,
+    formData.weightStoneLbs,
+  ]);
+
+  const updateCalculations = () => {
+    const heightCm = convertHeight(formData);
+    const weightKg = convertWeight(formData);
+
+    // Use calculated age from date of birth if age field is empty
+    const currentAge =
+      formData.age ||
+      (client?.date_of_birth ? calculateAge(client.date_of_birth) : 0);
+
+    if (weightKg > 0 && heightCm > 0 && currentAge) {
+      const bmr = calculateBMR(
+        weightKg,
+        heightCm,
+        parseInt(currentAge.toString()),
+        formData.gender,
+      );
+
+      const tdee = calculateTDEE(bmr, formData.activityLevel);
+      const targetCalories = calculateTargetCalories(
+        tdee,
+        formData.goal,
+        formData.weeklyChange,
+      );
+
+      // Calculate macros based on goal-specific ratios
+      let proteinMultiplier = 2.2; // g per kg body weight
+      let proteinPercent = 30;
+      let carbsPercent = 40;
+      let fatPercent = 30;
+
+      if (formData.goal === "lose_weight") {
+        proteinMultiplier = 2.4; // Higher protein when cutting
+        proteinPercent = 35;
+        carbsPercent = 35;
+        fatPercent = 30;
+      } else if (formData.goal === "gain_muscle") {
+        proteinMultiplier = 2.0;
+        proteinPercent = 25;
+        carbsPercent = 45;
+        fatPercent = 30;
+      }
+
+      const proteinGrams = Math.round(weightKg * proteinMultiplier);
+      const carbsGrams = Math.round(
+        (targetCalories * (carbsPercent / 100)) / 4,
+      );
+      const fatGrams = Math.round((targetCalories * (fatPercent / 100)) / 9);
+
+      setFormData((prev) => ({
+        ...prev,
+        age: currentAge, // Ensure age is saved
+        bmr,
+        tdee,
+        targetCalories,
+        proteinGrams,
+        carbsGrams,
+        fatGrams,
+        proteinPercent,
+        carbsPercent,
+        fatPercent,
+      }));
+    }
+  };
+
+  const handleMacroPercentChange = (macro: string, value: number) => {
+    const newData = { ...formData, [`${macro}Percent`]: value };
+
+    // Adjust other macros to maintain 100% total
+    const total =
+      newData.proteinPercent + newData.carbsPercent + newData.fatPercent;
+    if (total !== 100) {
+      const diff = 100 - value;
+      const otherMacros = ["protein", "carbs", "fat"].filter(
+        (m) => m !== macro,
+      );
+      const splitDiff = diff / otherMacros.length;
+
+      otherMacros.forEach((m) => {
+        newData[`${m}Percent`] = Math.round(splitDiff);
+      });
+    }
+
+    setFormData(newData);
+    updateCalculations();
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      // Convert units to metric for database storage
+      const heightCm = convertHeight(formData);
+      const weightKg = convertWeight(formData);
+
+      // Determine whether to use client_id or lead_id based on what's available
+      let useClientId = null;
+      let useLeadId = null;
+
+      // Priority 1: Use client.id directly if available
+      if (client.id) {
+        useClientId = client.id;
+        console.log("Using client_id for nutrition profile:", useClientId);
+      } else if (client.lead_id) {
+        // Priority 2: Use existing lead_id from client
+        useLeadId = client.lead_id;
+        console.log("Using existing lead_id for nutrition profile:", useLeadId);
+      } else {
+        // Priority 3: Search for lead by email or other identifiers
+        console.log(
+          "No direct client_id or lead_id, searching for matching lead...",
+        );
+
+        if (client.email) {
+          const { data: leadByEmail, error: emailError } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("email", client.email)
+            .single();
+
+          if (!emailError && leadByEmail) {
+            useLeadId = leadByEmail.id;
+            console.log("Found matching lead by email:", useLeadId);
+          }
+        }
+
+        // If still no lead found, try by any available client identifier
+        if (!useLeadId && client.id) {
+          const { data: leadByClientId, error: clientIdError } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("client_id", client.id)
+            .single();
+
+          if (!clientIdError && leadByClientId) {
+            useLeadId = leadByClientId.id;
+            console.log("Found matching lead by client reference:", useLeadId);
+          }
+        }
+
+        // If neither client_id nor lead_id can be determined, show error
+        if (!useClientId && !useLeadId) {
+          alert(
+            "Unable to save nutrition profile: No valid client or lead reference found. Please contact support.",
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Map activity level to match database expectations (UPPERCASE)
+      const activityLevelMap: Record<string, string> = {
+        sedentary: "SEDENTARY",
+        lightly_active: "LIGHTLY_ACTIVE",
+        moderately_active: "MODERATELY_ACTIVE",
+        very_active: "VERY_ACTIVE",
+        extra_active: "EXTRA_ACTIVE",
+      };
+
+      // Map cooking time to match database expectations (UPPERCASE)
+      const cookingTimeMapping: Record<string, string> = {
+        quick: "MINIMAL",
+        moderate: "MODERATE",
+        extensive: "EXTENSIVE",
+      };
+
+      // Build nutrition profile data to match database schema exactly
+      // Ensure calculations are up to date before saving
+      const currentAge =
+        parseInt(formData.age) ||
+        (client?.date_of_birth ? calculateAge(client.date_of_birth) : 30);
+      const currentBMR =
+        formData.bmr ||
+        calculateBMR(weightKg, heightCm, currentAge, formData.gender);
+      const currentTDEE =
+        formData.tdee || calculateTDEE(currentBMR, formData.activityLevel);
+      const currentTargetCalories =
+        formData.targetCalories ||
+        calculateTargetCalories(
+          currentTDEE,
+          formData.goal,
+          formData.weeklyChange,
+        );
+
+      const profileData: any = {
+        // Organization is always required
+        organization_id: client.organization_id || client.org_id,
+
+        // Set either client_id OR lead_id, never both
+        ...(useClientId && { client_id: useClientId }),
+        ...(useLeadId && { lead_id: useLeadId }),
+
+        // Required demographic fields (database expects lowercase)
+        age: currentAge,
+        gender: formData.gender || "other", // Database expects lowercase: male, female, other
+
+        // Physical measurements - use the exact column names from database
+        height_cm: Math.round(heightCm) || 170, // Database column is height_cm, ensure it's a number
+        weight_kg: Math.round(weightKg * 10) / 10 || 70, // Database column is weight_kg, round to 1 decimal
+        target_weight_kg: formData.targetWeight
+          ? parseFloat(formData.targetWeight)
+          : Math.round(weightKg * 10) / 10 || 70,
+
+        // Goals and activity (database expects lowercase)
+        goal: formData.goal || "maintain", // Database expects lowercase
+        activity_level: formData.activityLevel || "moderately_active", // Database expects lowercase
+        weekly_weight_change_kg: parseFloat(formData.weeklyChange) || 0.5,
+
+        // Calculated nutrition values - ALL REQUIRED - ensure they have values
+        bmr: currentBMR,
+        tdee: currentTDEE,
+        target_calories: currentTargetCalories,
+        protein_grams:
+          Math.round(formData.proteinGrams) || Math.round(weightKg * 2.2), // Default 2.2g per kg
+        carbs_grams:
+          Math.round(formData.carbsGrams) ||
+          Math.round((currentTargetCalories * 0.4) / 4), // 40% of calories / 4 cal per gram
+        fat_grams:
+          Math.round(formData.fatGrams) ||
+          Math.round((currentTargetCalories * 0.3) / 9), // 30% of calories / 9 cal per gram
+        fiber_grams: 25, // Default recommended fiber
+
+        // Meal planning - always 3 meals + 2 snacks
+        meals_per_day: 3,
+        snacks_per_day: 2,
+
+        // Additional fields for preferences (from form data)
+        training_frequency: 3,
+        training_types: [],
+        dietary_preferences: formData.dietaryType ? [formData.dietaryType] : [],
+        allergies: formData.allergies || [],
+        food_likes: formData.likedFoods || [],
+        food_dislikes: formData.dislikedFoods || [],
+        cooking_time: cookingTimeMapping[formData.cookingTime] || "MODERATE",
+        budget_constraint: "MODERATE",
+      };
+
+      console.log("Saving profile data with values:", {
+        height_cm: profileData.height_cm,
+        weight_kg: profileData.weight_kg,
+        age: profileData.age,
+        goal: profileData.goal,
+        target_calories: profileData.target_calories,
+      });
+
+      // Save to database using API endpoint (bypasses RLS issues)
+      const response = await fetch("/api/nutrition/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      const result = await response.json();
+      let data = result.data;
+      let error = result.success ? null : { message: result.error };
+
+      if (error) {
+        console.error("Error saving nutrition profile:", error);
+        alert(
+          "Failed to save your nutrition profile. Please try again or contact support if the problem persists.",
+        );
+        setSaving(false);
+        return;
+      }
+
+      console.log("Nutrition profile saved successfully:", data);
+
+      // Complete the setup
+      onComplete(data);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      alert(
+        "An unexpected error occurred. Please try again or contact support if the problem persists.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 py-8">
+      <div className="max-w-3xl mx-auto px-4">
+        {/* Progress bar */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-2">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <div
+                key={s}
+                className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  s <= step
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-700 text-gray-400"
+                }`}
+              >
+                {s < step ? <Check className="h-5 w-5" /> : s}
+              </div>
+            ))}
+          </div>
+          <div className="h-2 bg-gray-700 rounded-full">
+            <div
+              className="h-full bg-orange-600 rounded-full transition-all"
+              style={{ width: `${(step / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step 1: Basic Info */}
+        {step === 1 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <User className="h-6 w-6 text-orange-500" />
+              Basic Information
+            </h2>
+
+            <div className="space-y-4">
+              {/* Height Input with Unit Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Height
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.heightUnit}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        heightUnit: e.target.value as any,
+                      })
+                    }
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="cm">cm</option>
+                    <option value="ft">ft/in</option>
+                  </select>
+                  {formData.heightUnit === "cm" ? (
+                    <input
+                      type="number"
+                      value={formData.height}
+                      onChange={(e) =>
+                        setFormData({ ...formData, height: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="170"
+                    />
+                  ) : (
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="number"
+                        value={formData.heightFt}
+                        onChange={(e) =>
+                          setFormData({ ...formData, heightFt: e.target.value })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="5"
+                      />
+                      <span className="text-gray-400 py-2">ft</span>
+                      <input
+                        type="number"
+                        value={formData.heightIn}
+                        onChange={(e) =>
+                          setFormData({ ...formData, heightIn: e.target.value })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="10"
+                      />
+                      <span className="text-gray-400 py-2">in</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Weight Input with Unit Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Weight
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.weightUnit}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        weightUnit: e.target.value as any,
+                      })
+                    }
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="lbs">lbs</option>
+                    <option value="stone">st/lbs</option>
+                  </select>
+                  {formData.weightUnit === "kg" ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.weight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weight: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="70"
+                    />
+                  ) : formData.weightUnit === "lbs" ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.weightLbs}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weightLbs: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="154"
+                    />
+                  ) : (
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="number"
+                        value={formData.weightStone}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            weightStone: e.target.value,
+                          })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="11"
+                      />
+                      <span className="text-gray-400 py-2">st</span>
+                      <input
+                        type="number"
+                        value={formData.weightStoneLbs}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            weightStoneLbs: e.target.value,
+                          })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="0"
+                      />
+                      <span className="text-gray-400 py-2">lbs</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Age
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.age}
+                    onChange={(e) =>
+                      setFormData({ ...formData, age: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData({ ...formData, gender: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Activity Level
+                </label>
+                <select
+                  value={formData.activityLevel}
+                  onChange={(e) =>
+                    setFormData({ ...formData, activityLevel: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="sedentary">
+                    Sedentary (little or no exercise)
+                  </option>
+                  <option value="lightly_active">
+                    Lightly Active (1-3 days/week)
+                  </option>
+                  <option value="moderately_active">
+                    Moderately Active (3-5 days/week)
+                  </option>
+                  <option value="very_active">
+                    Very Active (6-7 days/week)
+                  </option>
+                  <option value="extra_active">
+                    Extra Active (very hard exercise/physical job)
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  updateCalculations();
+                  setStep(2);
+                }}
+                disabled={
+                  !formData.age ||
+                  (formData.heightUnit === "cm" && !formData.height) ||
+                  (formData.heightUnit === "ft" &&
+                    (!formData.heightFt || !formData.heightIn)) ||
+                  (formData.weightUnit === "kg" && !formData.weight) ||
+                  (formData.weightUnit === "lbs" && !formData.weightLbs) ||
+                  (formData.weightUnit === "stone" &&
+                    (!formData.weightStone || !formData.weightStoneLbs))
+                }
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Goals */}
+        {step === 2 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Target className="h-6 w-6 text-orange-500" />
+              Your Goals
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Primary Goal
+                </label>
+                <select
+                  value={formData.goal}
+                  onChange={(e) => {
+                    setFormData({ ...formData, goal: e.target.value });
+                    updateCalculations();
+                  }}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="lose_weight">Lose Weight</option>
+                  <option value="maintain">Maintain Weight</option>
+                  <option value="gain_muscle">Gain Muscle</option>
+                  <option value="improve_health">Improve Overall Health</option>
+                </select>
+              </div>
+
+              {formData.goal !== "maintain" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Target Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.targetWeight}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          targetWeight: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="65"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Weekly Change Target (kg)
+                    </label>
+                    <select
+                      value={formData.weeklyChange}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          weeklyChange: parseFloat(e.target.value),
+                        });
+                        updateCalculations();
+                      }}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="0.25">0.25 kg/week (Slow & Steady)</option>
+                      <option value="0.5">0.5 kg/week (Moderate)</option>
+                      <option value="0.75">0.75 kg/week (Aggressive)</option>
+                      <option value="1">1 kg/week (Very Aggressive)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Calorie Calculation Display */}
+              {formData.bmr > 0 && (
+                <div className="bg-gray-700 rounded-lg p-4 mt-4">
+                  <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                    <Calculator className="h-4 w-4" />
+                    Your Calorie Calculations
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">
+                        BMR (Basal Metabolic Rate)
+                      </span>
+                      <span className="text-white font-medium">
+                        {formData.bmr} cal
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">TDEE (Maintenance)</span>
+                      <span className="text-white font-medium">
+                        {formData.tdee} cal
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-600 pt-2">
+                      <span className="text-gray-400">Daily Target</span>
+                      <span className="text-orange-500 font-bold text-lg">
+                        {formData.targetCalories} cal
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(1)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Macros */}
+        {step === 3 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Activity className="h-6 w-6 text-orange-500" />
+              Macro Breakdown
+            </h2>
+
+            <div className="space-y-6">
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-400">Daily Calories</span>
+                  <span className="text-xl font-bold text-orange-500">
+                    {formData.targetCalories}
+                  </span>
+                </div>
+              </div>
+
+              {/* Protein */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">
+                    Protein
+                  </label>
+                  <span className="text-white">
+                    {formData.proteinGrams}g ({formData.proteinPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="40"
+                  value={formData.proteinPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange(
+                      "protein",
+                      parseInt(e.target.value),
+                    )
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.proteinGrams * 4} calories from protein
+                </div>
+              </div>
+
+              {/* Carbs */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">
+                    Carbohydrates
+                  </label>
+                  <span className="text-white">
+                    {formData.carbsGrams}g ({formData.carbsPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="65"
+                  value={formData.carbsPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange("carbs", parseInt(e.target.value))
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.carbsGrams * 4} calories from carbs
+                </div>
+              </div>
+
+              {/* Fat */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">Fat</label>
+                  <span className="text-white">
+                    {formData.fatGrams}g ({formData.fatPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="40"
+                  value={formData.fatPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange("fat", parseInt(e.target.value))
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.fatGrams * 9} calories from fat
+                </div>
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5" />
+                  <p className="text-sm text-blue-300">
+                    These macros are fully customizable. Your coach can also
+                    adjust them based on your progress and needs.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(2)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Meal Preferences */}
+        {step === 4 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Utensils className="h-6 w-6 text-orange-500" />
+              Meal Preferences
+            </h2>
+
+            <div className="space-y-4">
+              {/* Meal structure info - fixed at 3 meals + 2 snacks */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Daily Meal Structure
+                </label>
+                <p className="text-gray-300 text-sm">
+                  Your meal plan will include{" "}
+                  <span className="text-white font-semibold">3 main meals</span>{" "}
+                  and <span className="text-white font-semibold">2 snacks</span>{" "}
+                  per day, perfectly balanced to meet your nutritional goals.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Dietary Type (Optional)
+                </label>
+                <select
+                  value={formData.dietaryType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dietaryType: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">None</option>
+                  <option value="vegetarian">Vegetarian</option>
+                  <option value="vegan">Vegan</option>
+                  <option value="pescatarian">Pescatarian</option>
+                  <option value="keto">Keto</option>
+                  <option value="paleo">Paleo</option>
+                  <option value="mediterranean">Mediterranean</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Cooking Time Preference
+                </label>
+                <select
+                  value={formData.cookingTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cookingTime: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="quick">Quick (Under 30 mins)</option>
+                  <option value="moderate">Moderate (30-60 mins)</option>
+                  <option value="extensive">Extensive (Over 60 mins)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Cooking Skill Level
+                </label>
+                <select
+                  value={formData.cookingSkill}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cookingSkill: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(3)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(5)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Food Preferences & Allergies */}
+        {step === 5 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-orange-500" />
+              Allergies & Preferences
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Allergies (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., peanuts, shellfish, dairy"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      allergies: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Food Intolerances (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., lactose, gluten"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      intolerances: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Foods You Love (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., chicken, rice, broccoli"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      likedFoods: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Foods to Avoid (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., mushrooms, tomatoes"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      dislikedFoods: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5" />
+                  <p className="text-sm text-blue-300">
+                    The AI will use this information to create personalized meal
+                    plans that match your preferences and avoid anything you
+                    can't or don't want to eat.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(4)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Complete Setup
+                    <Check className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import {
   Plus,
@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useToast } from "@/lib/hooks/useToast";
-import { isFeatureEnabled } from "@/lib/feature-flags";
+import { useToast } from "@/app/lib/hooks/useToast";
+import { isFeatureEnabled } from "@/app/lib/feature-flags";
 import { useOrganization } from "@/app/hooks/useOrganization";
 
 interface Customer {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import SharedStaffCalendar from "@/app/components/staff/SharedStaffCalendar";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import { useOrganization } from "@/app/hooks/useOrganization";
 import { 
   Calendar,

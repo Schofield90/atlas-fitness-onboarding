@@ -6,7 +6,7 @@ import { LeadsTable } from '@/app/components/leads/LeadsTable'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
 import BulkImportModal from '@/app/components/leads/BulkImportModal'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 
 function LeadsContent() {
   const [activeTab, setActiveTab] = useState('all')

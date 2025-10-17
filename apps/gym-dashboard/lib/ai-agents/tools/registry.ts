@@ -9,7 +9,7 @@
  */
 
 import { AgentTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '@/app/lib/supabase/admin';
+import { createAdminClient } from '../../../app/lib/supabase/admin';
 
 // Import all tool categories
 import { DATA_TOOLS } from './data-tools';
@@ -436,7 +436,6 @@ export function getRegistryStats() {
         analytics: toolRegistry.getToolsByCategory('analytics').map(t => t.id),
         messaging: toolRegistry.getToolsByCategory('messaging').map(t => t.id),
         automation: toolRegistry.getToolsByCategory('automation').map(t => t.id),
-        booking: toolRegistry.getToolsByCategory('booking').map(t => t.id),
         crm: toolRegistry.getToolsByCategory('crm').map(t => t.id),
         reports: toolRegistry.getToolsByCategory('reports').map(t => t.id)
       }

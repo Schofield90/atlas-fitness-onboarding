@@ -2,12 +2,12 @@
 
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import { MapPin, UserPlus, Phone, Mail, MessageCircle, Edit2, Trash2, Eye, MoreVertical } from 'lucide-react'
 import StaffLocationModal from './StaffLocationModal'
 import InviteStaffModal from './InviteStaffModal'
-import { useToast } from '@/lib/hooks/useToast'
-import { isFeatureEnabled } from '@/lib/feature-flags'
+import { useToast } from '@/app/lib/hooks/useToast'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
 interface Staff {
   id: string

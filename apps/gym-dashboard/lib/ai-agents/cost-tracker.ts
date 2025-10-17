@@ -58,29 +58,12 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Default model pricing (fallback if database query fails)
- * Updated October 2025: Latest model versions
  */
 const DEFAULT_PRICING: Record<string, ModelPricing> = {
-  'gpt-5': {
-    id: 'gpt-5',
-    provider: 'openai',
-    name: 'GPT-5 (Latest)',
-    costPer1kInputTokens: 0.0030,
-    costPer1kOutputTokens: 0.0120,
-    contextWindow: 200000
-  },
-  'gpt-5-mini': {
-    id: 'gpt-5-mini',
-    provider: 'openai',
-    name: 'GPT-5 Mini',
-    costPer1kInputTokens: 0.0002,
-    costPer1kOutputTokens: 0.0008,
-    contextWindow: 200000
-  },
   'gpt-4o': {
     id: 'gpt-4o',
     provider: 'openai',
-    name: 'GPT-4o (Legacy)',
+    name: 'GPT-4o',
     costPer1kInputTokens: 0.0025,
     costPer1kOutputTokens: 0.0100,
     contextWindow: 128000
@@ -88,23 +71,15 @@ const DEFAULT_PRICING: Record<string, ModelPricing> = {
   'gpt-4o-mini': {
     id: 'gpt-4o-mini',
     provider: 'openai',
-    name: 'GPT-4o Mini (Legacy)',
+    name: 'GPT-4o Mini',
     costPer1kInputTokens: 0.000150,
     costPer1kOutputTokens: 0.000600,
     contextWindow: 128000
   },
-  'claude-sonnet-4-20250514': {
-    id: 'claude-sonnet-4-20250514',
-    provider: 'anthropic',
-    name: 'Claude Sonnet 4',
-    costPer1kInputTokens: 0.0030,
-    costPer1kOutputTokens: 0.0150,
-    contextWindow: 200000
-  },
   'claude-3-5-sonnet-20241022': {
     id: 'claude-3-5-sonnet-20241022',
     provider: 'anthropic',
-    name: 'Claude 3.5 Sonnet (Legacy)',
+    name: 'Claude 3.5 Sonnet',
     costPer1kInputTokens: 0.0030,
     costPer1kOutputTokens: 0.0150,
     contextWindow: 200000

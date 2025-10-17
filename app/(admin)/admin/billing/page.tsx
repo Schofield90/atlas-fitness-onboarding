@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import BillingOverview from "./components/BillingOverview";
 import RevenueChart from "./components/RevenueChart";
 import SubscriptionMetrics from "./components/SubscriptionMetrics";

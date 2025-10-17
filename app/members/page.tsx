@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 import DashboardLayout from "../components/DashboardLayout";
 import { useOrganization } from "@/app/hooks/useOrganization";
 import {
@@ -26,11 +26,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import toast from "@/lib/toast";
+import toast from "@/app/lib/toast";
 import {
   formatBritishDate,
   formatBritishCurrency,
-} from "@/lib/utils/british-format";
+} from "@/app/lib/utils/british-format";
 
 interface Member {
   id: string;

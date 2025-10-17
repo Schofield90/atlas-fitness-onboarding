@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { requireAdminAccess } from "@/lib/admin/impersonation";
+import { requireAdminAccess } from "@/app/lib/admin/impersonation";
 import AdminSidebar from "./components/AdminSidebar";
 import AdminHeader from "./components/AdminHeader";
 import AdminImpersonationBanner from "./components/AdminImpersonationBanner";

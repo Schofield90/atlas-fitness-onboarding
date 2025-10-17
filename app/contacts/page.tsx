@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags, ArrowUpDown, ChevronUp, ChevronDown, Trash2, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useToast } from '@/lib/hooks/useToast'
+import { useToast } from '@/app/lib/hooks/useToast'
 
 interface Contact {
   id: string

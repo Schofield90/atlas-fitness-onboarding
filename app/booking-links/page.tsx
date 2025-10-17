@@ -7,7 +7,7 @@ import {
   BarChart3, Settings, Eye, Calendar, Users, Clock
 } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
-import { BookingLink } from '@/lib/services/booking-link'
+import { BookingLink } from '@/app/lib/services/booking-link'
 
 interface BookingLinkWithStats extends BookingLink {
   stats?: {

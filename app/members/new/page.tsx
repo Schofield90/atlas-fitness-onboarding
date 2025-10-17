@@ -13,7 +13,7 @@ import {
   Save,
 } from "lucide-react";
 import Link from "next/link";
-import toast from "@/lib/toast";
+import toast from "@/app/lib/toast";
 
 export default function NewMemberPage() {
   const router = useRouter();

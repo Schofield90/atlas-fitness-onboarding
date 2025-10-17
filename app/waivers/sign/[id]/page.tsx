@@ -10,7 +10,7 @@ import {
   Pen,
   RotateCcw,
 } from "lucide-react";
-import { formatBritishDate } from "@/lib/utils/british-format";
+import { formatBritishDate } from "@/app/lib/utils/british-format";
 
 interface WaiverData {
   id: string;

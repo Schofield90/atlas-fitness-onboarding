@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import {
   getPostAuthRedirectUrl,
   UserRole,
   extractSubdomain,
-} from "@/lib/auth/domain-redirects";
-import { validateRedirectUrl } from "@/lib/security/redirect-validator";
+} from "@/app/lib/auth/domain-redirects";
+import { validateRedirectUrl } from "@/app/lib/security/redirect-validator";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
