@@ -739,9 +739,172 @@ export class UpdateGHLOpportunityTool extends BaseTool {
   }
 }
 
+/**
+ * Check available appointment slots in GoHighLevel calendar
+ * Does NOT book - only returns available times
+ */
+export class CheckGHLAvailabilityTool extends BaseTool {
+  id = "check_ghl_availability";
+  name = "Check GoHighLevel Calendar Availability";
+  description =
+    "Check what appointment times are available in the gym's calendar. Use this when a lead asks 'what times are available?' or 'when can I book?'. This tool ONLY checks availability - it does NOT book appointments. Returns available slots grouped by morning, afternoon, and evening.";
+  category = "gohighlevel" as const;
+
+  parametersSchema = z.object({
+    preferredDate: z
+      .string()
+      .optional()
+      .describe("ISO date string (YYYY-MM-DD) or natural language like 'Monday', 'tomorrow', 'next week'. Defaults to tomorrow if not specified."),
+  });
+
+  requiresPermission = "gohighlevel:check_availability";
+
+  async execute(
+    params: any,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const startTime = Date.now();
+    const validated = this.parametersSchema.parse(params);
+
+    try {
+      const supabase = createAdminClient();
+
+      // Get agent's GHL configuration
+      const { data: agent } = await supabase
+        .from("ai_agents")
+        .select("metadata, ghl_calendar_id, ghl_api_key")
+        .eq("id", context.agentId)
+        .single();
+
+      const apiKey = agent?.ghl_api_key || agent?.metadata?.gohighlevel_api_key;
+      const calendarId = agent?.ghl_calendar_id;
+
+      if (!apiKey) {
+        return {
+          success: false,
+          error: "GoHighLevel API key not configured for this agent",
+        };
+      }
+
+      if (!calendarId) {
+        return {
+          success: false,
+          error: "Calendar ID not configured. Please configure a calendar for this agent in Settings.",
+        };
+      }
+
+      // Parse natural language date to ISO format (reuse BookGHLAppointmentTool's logic)
+      const bookingTool = new BookGHLAppointmentTool();
+      const parsedDate = (bookingTool as any).parseDate(validated.preferredDate);
+
+      console.log(`[GHL Availability] Checking slots for date: ${parsedDate}`);
+
+      // Get available slots from GHL calendar
+      const availableSlots = await (bookingTool as any).getAvailableSlots(
+        apiKey,
+        calendarId,
+        parsedDate,
+      );
+
+      console.log(`[GHL Availability] Retrieved ${availableSlots.length} available slots from GHL API`);
+
+      if (availableSlots.length === 0) {
+        return {
+          success: true,
+          data: {
+            date: parsedDate,
+            availableSlots: [],
+            message: `Unfortunately, there are no available slots on ${parsedDate}. Would you like to check a different date?`,
+          },
+          metadata: {
+            executionTimeMs: Date.now() - startTime,
+          },
+        };
+      }
+
+      // Group slots by time of day
+      const morningSlots: any[] = [];
+      const afternoonSlots: any[] = [];
+      const eveningSlots: any[] = [];
+
+      availableSlots.forEach(slot => {
+        const hour = new Date(slot.startTime).getHours();
+        if (hour < 12) {
+          morningSlots.push(slot);
+        } else if (hour < 17) {
+          afternoonSlots.push(slot);
+        } else {
+          eveningSlots.push(slot);
+        }
+      });
+
+      const formatSlots = (slots: any[]) => slots
+        .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }))
+        .join(', ');
+
+      // Build availability message
+      let message = `Here are the available times for ${parsedDate}:\n\n`;
+
+      if (morningSlots.length > 0) {
+        message += `☀️ Morning: ${formatSlots(morningSlots)}\n`;
+      }
+      if (afternoonSlots.length > 0) {
+        message += `🌤️ Afternoon: ${formatSlots(afternoonSlots)}\n`;
+      }
+      if (eveningSlots.length > 0) {
+        message += `🌙 Evening: ${formatSlots(eveningSlots)}\n`;
+      }
+
+      message += `\nWhich time works best for you?`;
+
+      console.log(`[GHL Availability] ✅ Found ${availableSlots.length} slots - Morning: ${morningSlots.length}, Afternoon: ${afternoonSlots.length}, Evening: ${eveningSlots.length}`);
+
+      return {
+        success: true,
+        data: {
+          date: parsedDate,
+          totalSlots: availableSlots.length,
+          morningSlots: morningSlots.map(s => ({
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+          afternoonSlots: afternoonSlots.map(s => ({
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+          eveningSlots: eveningSlots.map(s => ({
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+          message,
+        },
+        metadata: {
+          executionTimeMs: Date.now() - startTime,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        metadata: {
+          executionTimeMs: Date.now() - startTime,
+        },
+      };
+    }
+  }
+}
+
 // Export all GoHighLevel tools
 export const GOHIGHLEVEL_TOOLS = [
   new BookGHLAppointmentTool(),
+  new CheckGHLAvailabilityTool(),
   new UpdateGHLContactTool(),
   new AddGHLTagsTool(),
   new UpdateGHLOpportunityTool(),
