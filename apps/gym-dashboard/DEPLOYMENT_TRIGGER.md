@@ -1,8 +1,24 @@
 # Deployment Trigger
 
-Last updated: October 16, 2025 - Lead Bots Navigation Added
+Last updated: October 17, 2025 - GoHighLevel Tools Registry Fix
 
 ## Recent Deployments
+
+### October 17, 2025 - 🔧 CRITICAL FIX: GoHighLevel Tools Missing from Production
+
+- **ISSUE**: Production calendar tool showing no available times, local working perfectly
+- **ROOT CAUSE**: gym-dashboard registry missing GoHighLevel and booking tools
+- **SYMPTOM**: `check_ghl_availability` tool not found in production registry
+- **FIX APPLIED**:
+  - Copied `gohighlevel-tools.ts` to `/apps/gym-dashboard/lib/ai-agents/tools/`
+  - Copied `booking-tools.ts` to `/apps/gym-dashboard/lib/ai-agents/tools/`
+  - Updated gym-dashboard registry to import both tool categories
+- **FILES CHANGED**:
+  - `/apps/gym-dashboard/lib/ai-agents/tools/registry.ts` (lines 19-20, 43-44)
+  - `/apps/gym-dashboard/lib/ai-agents/tools/gohighlevel-tools.ts` (NEW)
+  - `/apps/gym-dashboard/lib/ai-agents/tools/booking-tools.ts` (NEW)
+- **MONOREPO NOTE**: Production uses `/apps/gym-dashboard/lib/`, not root `/lib/`
+- **EXPECTED RESULT**: Calendar availability check now pulls correct GHL times in production
 
 ### October 16, 2025 - 🚀 NAVIGATION: Lead Bots Menu Item Added
 

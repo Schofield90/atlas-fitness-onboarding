@@ -16,6 +16,8 @@ import { DATA_TOOLS } from './data-tools';
 import { ANALYTICS_TOOLS } from './analytics-tools';
 import { MESSAGING_TOOLS } from './messaging-tools';
 import { AUTOMATION_TOOLS } from './automation-tools';
+import { BOOKING_TOOLS } from './booking-tools';
+import { GOHIGHLEVEL_TOOLS } from './gohighlevel-tools';
 
 /**
  * Tool Registry Class
@@ -37,7 +39,9 @@ export class ToolRegistry {
       ...DATA_TOOLS,
       ...ANALYTICS_TOOLS,
       ...MESSAGING_TOOLS,
-      ...AUTOMATION_TOOLS
+      ...AUTOMATION_TOOLS,
+      ...BOOKING_TOOLS,
+      ...GOHIGHLEVEL_TOOLS
     ];
 
     allTools.forEach(tool => this.registerTool(tool));
