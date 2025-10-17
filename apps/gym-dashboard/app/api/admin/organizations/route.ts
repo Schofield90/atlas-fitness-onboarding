@@ -1,93 +1,71 @@
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/app/lib/supabase/admin";
-import { requireAdminAccess } from "@/app/lib/admin/impersonation";
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { isAdmin } = await requireAdminAccess();
+    // Check authentication
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = createAdminClient();
+    // Check email-based authorization
+    const authorizedEmails = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk']
+    const isAuthorized = authorizedEmails.includes(user.email?.toLowerCase() || '')
 
-    const { data: organizations, error } = await supabase
-      .from("admin_organization_metrics")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      throw error;
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    return NextResponse.json({ organizations });
-  } catch (error) {
-    console.error("Failed to fetch organizations:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch organizations" },
-      { status: 500 },
-    );
-  }
-}
+    // Use admin client to fetch organizations (bypasses RLS)
+    const supabaseAdmin = createAdminClient()
 
-export async function POST(request: Request) {
-  try {
-    const { isAdmin } = await requireAdminAccess();
+    // Fetch all organizations
+    const { data: organizations, error: orgsError } = await supabaseAdmin
+      .from('organizations')
+      .select('id, name, slug, created_at')
+      .order('created_at', { ascending: false })
 
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (orgsError) {
+      console.error('[Admin Organizations API] Error fetching organizations:', orgsError)
+      return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
     }
 
-    const {
-      name,
-      email,
-      phone,
-      address,
-      subscription_status = "trialing",
-    } = await request.json();
+    // For each organization, calculate metrics
+    const organizationsWithMetrics = await Promise.all(
+      (organizations || []).map(async (org) => {
+        // Count active users in this organization
+        const { count: activeUsers } = await supabaseAdmin
+          .from('user_organizations')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', org.id)
 
-    if (!name || !email) {
-      return NextResponse.json(
-        { error: "Name and email are required" },
-        { status: 400 },
-      );
-    }
+        // Get subscription info (if exists)
+        // For now, we'll just return placeholder data since there's no subscription table yet
 
-    const supabase = createAdminClient();
-
-    // Create organization
-    const { data: org, error: orgError } = await supabase
-      .from("organizations")
-      .insert({
-        name,
-        email,
-        phone,
-        address,
-        subscription_status,
-        settings: {
-          timezone: "Europe/London",
-          currency: "GBP",
-          date_format: "DD/MM/YYYY",
-        },
+        return {
+          id: org.id,
+          name: org.name,
+          slug: org.slug || '',
+          subscription_status: 'active', // TODO: Get from actual subscription data
+          subscription_plan: 'Pro', // TODO: Get from actual subscription data
+          created_at: org.created_at,
+          active_users: activeUsers || 0,
+          mrr: 0, // TODO: Calculate from subscription data
+          last_activity: org.created_at, // TODO: Get from activity logs
+        }
       })
-      .select()
-      .single();
-
-    if (orgError) {
-      throw orgError;
-    }
+    )
 
     return NextResponse.json({
       success: true,
-      organization: org,
-      message: "Organization created successfully",
-    });
+      organizations: organizationsWithMetrics,
+    })
   } catch (error) {
-    console.error("Failed to create organization:", error);
-    return NextResponse.json(
-      { error: "Failed to create organization" },
-      { status: 500 },
-    );
+    console.error('[Admin Organizations API] Unexpected error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

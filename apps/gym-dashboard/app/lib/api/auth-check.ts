@@ -127,12 +127,16 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   const adminClient = createAdminClient();
 
   // First check user_organizations table (primary source)
+  // Use .limit(1) instead of .single() to handle users with multiple orgs
   console.log("[requireAuth] Querying user_organizations for user:", user.id);
-  const { data: userOrgData, error: userOrgError } = await adminClient
+  const { data: userOrgResults, error: userOrgError } = await adminClient
     .from("user_organizations")
     .select("organization_id, role")
     .eq("user_id", user.id)
-    .single();
+    .order("created_at", { ascending: false }) // Most recent first
+    .limit(1);
+
+  const userOrgData = userOrgResults?.[0];
 
   console.log("[requireAuth] user_organizations result:", {
     found: !!userOrgData,
@@ -149,12 +153,15 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     console.log(
       "[requireAuth] Not found in user_organizations, checking organization_members",
     );
-    const { data: memberData, error: memberError } = await adminClient
+    const { data: memberResults, error: memberError } = await adminClient
       .from("organization_members")
       .select("organization_id, role")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const memberData = memberResults?.[0];
 
     console.log("[requireAuth] organization_members result:", {
       found: !!memberData,

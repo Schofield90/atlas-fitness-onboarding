@@ -67,6 +67,7 @@ export function AgentFormModal({
   const [error, setError] = useState<string | null>(null);
   const [availableTools, setAvailableTools] = useState<any[]>([]);
   const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [showAdvancedPermissions, setShowAdvancedPermissions] = useState(false);
 
   const {
     register,
@@ -94,6 +95,13 @@ export function AgentFormModal({
   useEffect(() => {
     if (open) {
       loadAvailableTools();
+      setError(null);
+    }
+  }, [open]);
+
+  // Separate effect to reset form when availableTools are loaded
+  useEffect(() => {
+    if (open && availableTools.length > 0) {
       if (agent) {
         reset({
           name: agent.name,
@@ -106,6 +114,9 @@ export function AgentFormModal({
           allowed_tools: agent.allowed_tools || [],
         });
       } else {
+        // For new agents, default to all tools selected
+        // User can deselect tools they don't want
+        const allToolIds = availableTools.map((t) => t.id);
         reset({
           name: "",
           description: "",
@@ -114,12 +125,11 @@ export function AgentFormModal({
           model: "gpt-4o-mini",
           temperature: 0.7,
           max_tokens: 4000,
-          allowed_tools: [],
+          allowed_tools: allToolIds, // Enable all tools by default
         });
       }
-      setError(null);
     }
-  }, [open, agent, reset]);
+  }, [open, agent, availableTools, reset]);
 
   const loadAvailableTools = async () => {
     try {
@@ -371,27 +381,40 @@ export function AgentFormModal({
           {/* Allowed Tools */}
           {availableTools.length > 0 && (
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Allowed Tools (Optional)
-              </label>
-              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg p-3">
-                {availableTools.map((tool) => (
-                  <label
-                    key={tool.id}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        watch("allowed_tools")?.includes(tool.id) || false
-                      }
-                      onChange={() => handleToolToggle(tool.id)}
-                      className="rounded border-gray-700 text-orange-500 focus:ring-orange-500"
-                    />
-                    <span className="text-sm text-gray-300">{tool.name}</span>
-                  </label>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowAdvancedPermissions(!showAdvancedPermissions)
+                }
+                className="text-sm text-gray-400 hover:text-gray-300 flex items-center gap-2 transition-colors"
+              >
+                {showAdvancedPermissions ? "▼" : "▶"} Edit Advanced Permissions
+                <span className="text-xs bg-gray-700 px-2 py-0.5 rounded">
+                  {watch("allowed_tools")?.length || 0} / {availableTools.length}{" "}
+                  tools enabled
+                </span>
+              </button>
+
+              {showAdvancedPermissions && (
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg p-3 mt-2">
+                  {availableTools.map((tool) => (
+                    <label
+                      key={tool.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          watch("allowed_tools")?.includes(tool.id) || false
+                        }
+                        onChange={() => handleToolToggle(tool.id)}
+                        className="rounded border-gray-700 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-300">{tool.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

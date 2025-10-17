@@ -298,20 +298,46 @@ export default function AgentChatPage() {
 
       const result = await response.json();
       console.log("[DEBUG] Send message result:", result);
+      console.log("[DEBUG] Response status:", response.status);
+      console.log("[DEBUG] Response ok:", response.ok);
+
+      if (!response.ok) {
+        console.error("[DEBUG] HTTP error:", response.status, result);
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+        alert(`Failed to send message: ${result.error || 'Unknown error'}`);
+        return;
+      }
 
       if (result.success) {
-        // Reload messages to get the real user message + AI response
-        console.log("[DEBUG] Message sent successfully, reloading messages");
-        await loadMessages(conversationId);
+        // Replace optimistic message with real messages from server
+        console.log("[DEBUG] Message sent successfully, updating messages");
+
+        // Fetch updated messages
+        const messagesResponse = await fetch(
+          `/api/ai-agents/conversations/${conversationId}/messages?limit=100`,
+        );
+        const messagesResult = await messagesResponse.json();
+        console.log("[DEBUG] Messages reload result:", messagesResult);
+
+        if (messagesResult.success && messagesResult.messages) {
+          setMessages(messagesResult.messages);
+          console.log("[DEBUG] Updated messages count:", messagesResult.messages.length);
+        } else {
+          console.error("[DEBUG] Failed to reload messages:", messagesResult.error);
+          // Keep optimistic message if reload fails
+          alert(`Warning: Message sent but failed to reload: ${messagesResult.error}`);
+        }
       } else {
         console.error("Failed to send message:", result.error);
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+        alert(`Failed to send message: ${result.error}`);
       }
     } catch (error) {
       console.error("Error sending message:", error);
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+      alert(`Error sending message: ${error}`);
     } finally {
       setSending(false);
     }
@@ -439,6 +465,23 @@ export default function AgentChatPage() {
                   </div>
                 ))
               )}
+
+              {/* Typing indicator - show when sending */}
+              {sending && (
+                <div className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Bot className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="bg-gray-800 text-gray-100 border border-gray-700 rounded-lg p-4">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 

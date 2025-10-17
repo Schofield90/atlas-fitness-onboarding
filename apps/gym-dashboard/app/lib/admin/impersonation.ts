@@ -148,7 +148,7 @@ export async function startImpersonation(
     });
 
     // 8. Set secure cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set("admin-impersonation", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -188,7 +188,7 @@ export async function stopImpersonation(): Promise<{
   error?: string;
 }> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("admin-impersonation")?.value;
 
     if (!token) {
@@ -259,7 +259,7 @@ export async function stopImpersonation(): Promise<{
  */
 export async function getImpersonationSession(): Promise<ImpersonationToken | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("admin-impersonation")?.value;
 
     if (!token) {
@@ -286,7 +286,7 @@ export async function getImpersonationSession(): Promise<ImpersonationToken | nu
     return impersonation;
   } catch (error) {
     // Invalid or expired token
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete("admin-impersonation");
     return null;
   }
@@ -371,30 +371,40 @@ export async function requireAdminAccess(): Promise<{
     } = await supabase.auth.getUser();
 
     if (authError) {
-      console.error("Auth error in requireAdminAccess:", authError);
+      console.error("[requireAdminAccess] Auth error:", authError.message);
       return { isAdmin: false, error: "Auth error: " + authError.message };
     }
 
     if (!user) {
-      console.error("No user found in requireAdminAccess");
+      console.error("[requireAdminAccess] No user session found");
       return { isAdmin: false, error: "No user session" };
     }
 
     console.log(
-      "Checking admin access for user:",
+      "[requireAdminAccess] Checking admin access for:",
       user.email,
-      "with ID:",
+      "User ID:",
       user.id,
     );
 
-    const { data: staffUser, error: staffError } = await supabase
+    // Use admin client to bypass RLS when querying staff table
+    // This is safe because we've already verified the user is authenticated
+    const { createAdminClient } = await import("@/app/lib/supabase/admin");
+    const adminClient = createAdminClient();
+
+    console.log("[requireAdminAccess] Querying staff table...");
+    const { data: staffUser, error: staffError } = await adminClient
       .from("staff")
       .select("*")
       .eq("user_id", user.id)
       .single();
 
     if (staffError) {
-      console.error("Staff lookup error:", staffError);
+      console.error(
+        "[requireAdminAccess] Staff lookup error:",
+        staffError.message,
+        staffError.code,
+      );
       return {
         isAdmin: false,
         error: "Staff lookup failed: " + staffError.message,
@@ -402,23 +412,37 @@ export async function requireAdminAccess(): Promise<{
     }
 
     if (!staffUser) {
-      console.error("User is not staff:", user.email);
+      console.error("[requireAdminAccess] User is not staff:", user.email);
       return { isAdmin: false, error: "Not a staff user" };
     }
+
+    console.log("[requireAdminAccess] Staff record found:", {
+      email: staffUser.email,
+      metadata: staffUser.metadata,
+    });
 
     // Check if user has superadmin role in metadata
     const role = staffUser.metadata?.role;
     const isActive = staffUser.metadata?.is_active;
 
+    console.log("[requireAdminAccess] Role check:", { role, isActive });
+
     if (role !== "superadmin" || !isActive) {
-      console.error("User does not have superadmin role:", user.email);
+      console.error(
+        "[requireAdminAccess] Insufficient permissions:",
+        user.email,
+        "Role:",
+        role,
+        "Active:",
+        isActive,
+      );
       return { isAdmin: false, error: "Not a superadmin user" };
     }
 
-    console.log("Admin access granted for:", user.email, "with role:", role);
+    console.log("[requireAdminAccess] ✅ Admin access granted for:", user.email);
     return { isAdmin: true, adminUser: { ...staffUser, role } };
   } catch (error) {
-    console.error("Unexpected error in requireAdminAccess:", error);
+    console.error("[requireAdminAccess] Unexpected error:", error);
     return { isAdmin: false, error: "Unexpected error" };
   }
 }

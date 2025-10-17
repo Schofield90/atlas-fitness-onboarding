@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Generate random seed for color selection to ensure variety
     // But respect user's color preferences if mentioned in description
-    console.log('[DEBUG] Route file: /apps/gym-dashboard/app/api/landing-pages/ai-build/route.ts');
+    console.log('[DEBUG] Route file: /app/api/landing-pages/ai-build/route.ts');
     console.log('[DEBUG] Raw description:', description);
 
     const descriptionLower = description.toLowerCase();

@@ -82,7 +82,7 @@ export async function POST(
     };
 
     // Set impersonation cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set("impersonation", JSON.stringify(impersonationToken), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -126,7 +126,7 @@ export async function DELETE(
     }
 
     // Get impersonation session from cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const impersonationCookie = cookieStore.get("impersonation");
 
     if (!impersonationCookie) {

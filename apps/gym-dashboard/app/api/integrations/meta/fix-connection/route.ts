@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear localStorage flags from cookies (if stored)
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete("fb_integration_status");
     cookieStore.delete("fb_access_token");
 

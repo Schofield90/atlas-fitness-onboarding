@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     // IMPORTANT: Set the auth cookies manually for localhost
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const isProduction = process.env.NODE_ENV === "production";
 
     // Set the Supabase auth cookies

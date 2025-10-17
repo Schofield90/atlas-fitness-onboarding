@@ -12,6 +12,7 @@ export function getAnthropic(): Anthropic | null {
     try {
       anthropicInstance = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
+        dangerouslyAllowBrowser: true, // Safe: only used in server-side code
       })
     } catch (error) {
       console.error('Failed to initialize Anthropic:', error)

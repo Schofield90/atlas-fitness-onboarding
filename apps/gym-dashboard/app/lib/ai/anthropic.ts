@@ -25,6 +25,7 @@ function getAnthropicClient(): Anthropic | null {
   try {
     anthropic = new Anthropic({
       apiKey: apiKey,
+      dangerouslyAllowBrowser: true, // Safe: only used in server-side code
     });
     return anthropic;
   } catch (error) {

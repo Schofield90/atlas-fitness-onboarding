@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
+    const supabase = createClient(await cookies());
 
     // Get the request body
     const body = await request.json();
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check for new InBody scans
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
+    const supabase = createClient(await cookies());
     const { searchParams } = new URL(request.url);
     const profileId = searchParams.get("profileId");
 

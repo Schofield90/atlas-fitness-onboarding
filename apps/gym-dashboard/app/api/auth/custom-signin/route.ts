@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     };
 
     // Set secure session cookie
-    cookies().set("custom_admin_session", JSON.stringify(sessionData), {
+    (await cookies()).set("custom_admin_session", JSON.stringify(sessionData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     // Ensure session is properly set in server cookies
     if (authData.session) {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
 
       // Set auth cookies with proper security settings
       const isProd =

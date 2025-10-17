@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
       data.user?.email,
     );
 
+    // Cookies are automatically set via the cookie store in createClient()
+    // Next.js will include them in the response automatically
+    console.log("[set-session] Session cookies set via Supabase cookie store");
+
     return NextResponse.json({
       success: true,
       user: data.user,
