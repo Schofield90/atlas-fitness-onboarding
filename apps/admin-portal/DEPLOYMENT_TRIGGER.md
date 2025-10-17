@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: 2025-10-17 17:45 - Add diagnostics + force dynamic rendering for GHL calendar
+Last updated: 2025-10-17 18:55 - CRITICAL: Fix UTC date conversion for GHL API + force redeploy
 
 This file is used to trigger deployments when shared app files change.
 Modify this file to force a rebuild.

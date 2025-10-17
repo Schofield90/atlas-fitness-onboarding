@@ -277,9 +277,9 @@ export class BookGHLAppointmentTool extends BaseTool {
     const date = preferredDate || new Date().toISOString().split("T")[0];
 
     // Convert date to Unix timestamps (milliseconds) for GHL v2 API
-    const dateObj = new Date(date);
-    dateObj.setHours(0, 0, 0, 0);
-    const startDate = dateObj.getTime();
+    // IMPORTANT: Use Date.UTC() to ensure we're working in UTC, not local timezone
+    const [year, month, day] = date.split('-').map(Number);
+    const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
 
     // Fetch available slots from GHL v2 API
