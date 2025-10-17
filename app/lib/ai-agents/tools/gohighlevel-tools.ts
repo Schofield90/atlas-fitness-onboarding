@@ -277,9 +277,18 @@ export class BookGHLAppointmentTool extends BaseTool {
     const date = preferredDate || new Date().toISOString().split("T")[0];
 
     // Convert date to Unix timestamps (milliseconds) for GHL v2 API
-    // IMPORTANT: Use Date.UTC() to ensure we're working in UTC, not local timezone
+    // IMPORTANT: GHL expects timestamps in calendar's LOCAL timezone (Europe/London), not UTC
+    // For Sunday Oct 19 2025 in BST (UTC+1), we need Saturday Oct 18 23:00 UTC
     const [year, month, day] = date.split('-').map(Number);
-    const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+
+    // Create date at midnight in the calendar's timezone (Europe/London)
+    // In 2025, UK uses BST (UTC+1) from March 30 to October 26
+    // To get midnight London time, subtract 1 hour from UTC during BST
+    const dateInUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const isDST = this.isDaylightSavingTime(dateInUTC);
+    const timezoneOffsetMs = isDST ? (1 * 60 * 60 * 1000) : 0; // BST = UTC+1, GMT = UTC+0
+
+    const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - timezoneOffsetMs;
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
 
     // Fetch available slots from GHL v2 API
@@ -496,6 +505,26 @@ export class BookGHLAppointmentTool extends BaseTool {
     }
 
     return undefined;
+  }
+
+  /**
+   * Determine if a given date is in British Summer Time (BST) or GMT
+   * BST runs from last Sunday in March to last Sunday in October
+   * @param date Date to check
+   * @returns true if date is in BST (UTC+1), false if GMT (UTC+0)
+   */
+  private isDaylightSavingTime(date: Date): boolean {
+    const year = date.getUTCFullYear();
+
+    // Get last Sunday in March (BST start)
+    const marchLast = new Date(Date.UTC(year, 2, 31)); // March 31
+    const marchLastSunday = new Date(Date.UTC(year, 2, 31 - marchLast.getUTCDay(), 1, 0, 0, 0));
+
+    // Get last Sunday in October (BST end)
+    const octoberLast = new Date(Date.UTC(year, 9, 31)); // October 31
+    const octoberLastSunday = new Date(Date.UTC(year, 9, 31 - octoberLast.getUTCDay(), 1, 0, 0, 0));
+
+    return date >= marchLastSunday && date < octoberLastSunday;
   }
 }
 
