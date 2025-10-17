@@ -313,7 +313,20 @@ ${agent.system_prompt}`;
 
           return {
             success: true,
-            message: assistantMsg,
+            userMessage: {
+              id: userMsg.id,
+              role: "user",
+              content: userMsg.content || "",
+              created_at: userMsg.created_at,
+            },
+            assistantMessage: {
+              id: assistantMsg.id,
+              role: "assistant",
+              content: assistantMsg.content || "",
+              tool_calls: assistantMsg.tool_calls,
+              tokens_used: assistantMsg.tokens_used || 0,
+              created_at: assistantMsg.created_at,
+            },
             cost: this.emptyCost(),
           };
         }
