@@ -1,6 +1,6 @@
 # Deployment Trigger
 
-Last updated: October 17, 2025 - ACTUAL FIX: Add missing GoHighLevel tools to gym-dashboard registry
+Last updated: October 17, 2025 17:45 - Add diagnostics + force dynamic rendering for GHL calendar
 
 ## Recent Deployments
 
