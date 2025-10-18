@@ -74,6 +74,15 @@ export async function POST(
       );
     }
 
+    console.log(`[GHL Webhook] Agent loaded:`, {
+      id: agent.id,
+      name: agent.name,
+      model: agent.model,
+      temperature: agent.temperature,
+      max_tokens: agent.max_tokens,
+      allowed_tools: agent.allowed_tools,
+    });
+
     // 2. Verify webhook signature (if configured)
     if (agent.ghl_webhook_secret && ghlSignature) {
       const isValid = verifyGHLSignature(
