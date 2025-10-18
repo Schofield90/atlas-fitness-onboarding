@@ -328,7 +328,8 @@ export class BookingLinkService {
   }
 
   async listBookingLinks(organizationId: string): Promise<BookingLink[]> {
-    const supabaseClient = await this.getSupabaseClient();
+    // Use admin client to bypass RLS - authorization already checked in API route
+    const supabaseClient = await this.getAdminSupabaseClient();
     const { data, error } = await supabaseClient
       .from("booking_links")
       .select("*")

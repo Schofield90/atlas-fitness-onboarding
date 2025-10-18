@@ -162,7 +162,7 @@ export default function BookingLinksPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-6">
+      <div className="p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-400">Loading booking links...</div>
         </div>
@@ -171,7 +171,7 @@ export default function BookingLinksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>

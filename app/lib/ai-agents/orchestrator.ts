@@ -233,13 +233,67 @@ ${generalTones.join('\n\n---\n\n')}
       }
 
       // Add self-debugging instructions to prevent hallucinations (NEW)
-      const finalPrompt = addSelfDebugInstructions(promptWithSops);
+      let finalPrompt = addSelfDebugInstructions(promptWithSops);
+
+      // Add current date/time dynamically (always fresh for each conversation)
+      const now = new Date();
+      const ukDateTime = now.toLocaleString('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const dayOfWeek = now.toLocaleDateString('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long'
+      });
+      const isoDate = now.toISOString().split('T')[0];
+
+      const dateHeader = `CURRENT DATE/TIME:
+Today is ${ukDateTime} (${dayOfWeek})
+ISO Date: ${isoDate}
+
+IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}.
+
+`;
+
+      finalPrompt = dateHeader + finalPrompt;
 
       return finalPrompt;
     } catch (error) {
       console.error('[Orchestrator] Error loading SOPs:', error);
-      // If SOP loading fails, still add self-debug instructions to base prompt
-      return addSelfDebugInstructions(basePrompt);
+
+      // If SOP loading fails, still add current date and self-debug instructions
+      const now = new Date();
+      const ukDateTime = now.toLocaleString('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const dayOfWeek = now.toLocaleDateString('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long'
+      });
+      const isoDate = now.toISOString().split('T')[0];
+
+      const dateHeader = `CURRENT DATE/TIME:
+Today is ${ukDateTime} (${dayOfWeek})
+ISO Date: ${isoDate}
+
+IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}.
+
+`;
+
+      return dateHeader + addSelfDebugInstructions(basePrompt);
     }
   }
 
