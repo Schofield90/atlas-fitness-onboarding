@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const {
       data: { user },
@@ -21,9 +22,7 @@ export async function GET(
     }
 
     // Check if user has access to this booking link
-    const bookingLink = await serverBookingLinkService.getBookingLinkById(
-      params.id,
-    );
+    const bookingLink = await serverBookingLinkService.getBookingLinkById(id);
     if (!bookingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
