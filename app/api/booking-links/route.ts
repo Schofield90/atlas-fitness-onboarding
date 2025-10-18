@@ -34,14 +34,16 @@ export async function GET(request: NextRequest) {
     else if ((orgMember as any)?.org_id)
       organizationId = (orgMember as any).org_id;
 
-    // Fallback to user_organizations
+    // Fallback to user_organizations (use .maybeSingle() to handle multiple orgs)
     if (!organizationId) {
       const { data: userOrg } = await supabase
         .from("user_organizations")
         .select("organization_id")
         .eq("user_id", user.id)
         .eq("is_active", true)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (userOrg?.organization_id) organizationId = userOrg.organization_id;
     }
 
@@ -108,7 +110,9 @@ export async function POST(request: NextRequest) {
         .select("organization_id")
         .eq("user_id", user.id)
         .eq("is_active", true)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (userOrg?.organization_id) organizationId = userOrg.organization_id;
     }
 
