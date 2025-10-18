@@ -21,3 +21,10 @@ Modify this file to force a rebuild.
 
 AI Agent Prompt Generation deployed - Thu 9 Oct 2025 08:50:32 BST
 Trial Period Banner & Navigation Fixes - Thu 9 Oct 2025 09:15:00 BST
+
+### October 18, 2025 - 🔧 TIMEZONE FIX: GHL Times Off By 1 Hour
+
+- **ISSUE**: Times displaying 1 hour earlier (8:30am instead of 9:30am)
+- **FIX**: Added `timeZone: 'Europe/London'` to all time formatting in gohighlevel-tools.ts
+- **DEPLOYED**: Commit 46044e0c
+- **EXPECTED**: 9:30am slots now display as 9:30am (not 8:30am)
