@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const {
       data: { user },
@@ -20,9 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const bookingLink = await serverBookingLinkService.getBookingLinkById(
-      params.id,
-    );
+    const bookingLink = await serverBookingLinkService.getBookingLinkById(id);
 
     if (!bookingLink) {
       return NextResponse.json(
@@ -57,9 +56,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const {
       data: { user },
@@ -71,9 +71,7 @@ export async function PUT(
     }
 
     // Check if user has access to this booking link
-    const existingLink = await serverBookingLinkService.getBookingLinkById(
-      params.id,
-    );
+    const existingLink = await serverBookingLinkService.getBookingLinkById(id);
     if (!existingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -100,7 +98,7 @@ export async function PUT(
     const validation = await serverBookingLinkService.validateBookingLinkConfig(
       {
         ...body,
-        id: params.id,
+        id: id,
         organization_id: existingLink.organization_id,
       },
     );
@@ -114,7 +112,7 @@ export async function PUT(
 
     // Update the booking link
     const updatedLink = await serverBookingLinkService.updateBookingLink(
-      params.id,
+      id,
       body,
     );
 
@@ -169,9 +167,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const {
       data: { user },
@@ -183,9 +182,7 @@ export async function DELETE(
     }
 
     // Check if user has access to this booking link
-    const existingLink = await serverBookingLinkService.getBookingLinkById(
-      params.id,
-    );
+    const existingLink = await serverBookingLinkService.getBookingLinkById(id);
     if (!existingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -206,7 +203,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    await serverBookingLinkService.deleteBookingLink(params.id);
+    await serverBookingLinkService.deleteBookingLink(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting booking link:", error);

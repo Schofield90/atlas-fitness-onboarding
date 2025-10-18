@@ -335,13 +335,7 @@ export default function BookingPage() {
               Settings
             </Button>
             <Button
-              onClick={() => {
-                try {
-                  router.push("/booking-links");
-                } catch (err) {
-                  console.error((err as Error).message);
-                }
-              }}
+              onClick={() => router.push("/booking-links")}
               className="border border-gray-300 text-white hover:bg-gray-700 hover:border-gray-500 px-4 py-2 text-sm flex items-center gap-2"
             >
               <Link className="w-4 h-4" />

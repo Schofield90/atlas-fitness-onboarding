@@ -237,6 +237,9 @@ ${generalTones.join('\n\n---\n\n')}
 
       // Add current date/time dynamically (always fresh for each conversation)
       const now = new Date();
+
+      console.log('[Orchestrator] Generating date header at:', now.toISOString());
+
       const ukDateTime = now.toLocaleString('en-GB', {
         timeZone: 'Europe/London',
         weekday: 'long',
@@ -252,6 +255,10 @@ ${generalTones.join('\n\n---\n\n')}
         weekday: 'long'
       });
       const isoDate = now.toISOString().split('T')[0];
+
+      console.log('[Orchestrator] UK DateTime:', ukDateTime);
+      console.log('[Orchestrator] Day of Week:', dayOfWeek);
+      console.log('[Orchestrator] ISO Date:', isoDate);
 
       const dateHeader = `CURRENT DATE/TIME:
 Today is ${ukDateTime} (${dayOfWeek})

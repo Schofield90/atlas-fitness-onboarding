@@ -14,8 +14,12 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.log('[booking-links GET] Auth error:', authError);
+      console.log('[booking-links GET] User:', user);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    console.log('[booking-links GET] Authenticated user:', user.email);
 
     // Get user's organization (support both legacy and standardized columns)
     let organizationId: string | null = null;

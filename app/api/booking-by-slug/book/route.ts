@@ -50,27 +50,26 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Get booking link details - try to get it even if there's an error
+    // Get booking link details
     const { data: bookingLink, error: linkError } = await supabase
       .from("booking_links")
       .select("*")
       .eq("slug", slug)
+      .eq("is_active", true)
       .single();
 
-    // Log for debugging
     console.log("Booking link query result:", {
       slug,
       found: !!bookingLink,
       error: linkError?.message,
     });
 
-    // For now, just use default values if booking link is not found
-    const linkData = bookingLink || {
-      id: "default",
-      user_id: "ea1fc8e3-35a2-4c59-80af-5fde557391a1", // Your user ID from earlier
-      organization_id: "63589490-8f55-4157-bd3a-e141594b748e", // Atlas Fitness org ID
-      slug: slug,
-    };
+    if (!bookingLink) {
+      return NextResponse.json(
+        { error: "Booking link not found or inactive" },
+        { status: 404 },
+      );
+    }
 
     // Calculate end time (default to 30 minutes)
     const startDate = new Date(start_time);
@@ -81,73 +80,49 @@ export async function POST(request: NextRequest) {
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15);
 
-    // Create a calendar event (since bookings table might not exist)
-    const eventData = {
-      user_id: linkData.user_id || null,
-      title: `Booking: ${attendee_name}`,
-      description: `Email: ${attendee_email}\nPhone: ${attendee_phone || "N/A"}\nNotes: ${notes || "N/A"}\nConfirmation: ${confirmationToken}`,
+    // Create booking submission
+    const submissionData = {
+      booking_link_id: bookingLink.id,
+      organization_id: bookingLink.organization_id,
+      attendee_name,
+      attendee_email,
+      attendee_phone: attendee_phone || null,
+      appointment_type_id: appointment_type_id || null,
       start_time: startDate.toISOString(),
       end_time: endDate.toISOString(),
-      event_type: "booking",
-      location: "To be confirmed",
-      attendees: [attendee_email],
-      is_all_day: false,
-      reminder_minutes: 15,
-      status: "confirmed",
+      timezone: timezone || "UTC",
+      staff_id: staff_id || null,
+      notes: notes || null,
+      custom_fields: custom_fields || {},
+      status: "pending",
+      confirmation_token: confirmationToken,
     };
 
-    console.log("Creating calendar event:", eventData);
+    console.log("Creating booking submission:", submissionData);
 
-    const { data: calendarEvent, error: calendarError } = await supabase
-      .from("calendar_events")
-      .insert(eventData)
+    const { data: submission, error: submissionError } = await supabase
+      .from("booking_link_submissions")
+      .insert(submissionData)
       .select()
       .single();
 
-    if (calendarError) {
-      console.error("Error creating calendar event:", calendarError);
+    if (submissionError) {
+      console.error("Error creating booking submission:", submissionError);
+      return NextResponse.json(
+        { error: "Failed to create booking submission" },
+        { status: 500 },
+      );
+    }
 
-      // Try to create a lead instead as fallback
-      const leadData = {
-        organization_id:
-          linkData.organization_id || "63589490-8f55-4157-bd3a-e141594b748e",
-        first_name: attendee_name.split(" ")[0] || "Guest",
-        last_name: attendee_name.split(" ").slice(1).join(" ") || "",
-        email: attendee_email,
-        phone: attendee_phone || "",
-        source: "booking",
-        status: "new",
-        notes: `Booking request for ${startDate.toLocaleString()}\n${notes || ""}`,
-      };
+    console.log("Booking submission created successfully:", submission.id);
 
-      console.log("Attempting to create lead with data:", leadData);
-
-      const { data: lead, error: leadError } = await supabase
-        .from("leads")
-        .insert(leadData)
-        .select()
-        .single();
-
-      if (leadError) {
-        console.error("Error creating lead:", leadError);
-        console.error("Lead data that failed:", leadData);
-
-        // Last resort - just log the booking and return success
-        console.log("BOOKING REQUEST (Manual Entry Needed):", {
-          name: attendee_name,
-          email: attendee_email,
-          phone: attendee_phone,
-          time: startDate.toISOString(),
-          notes: notes,
-        });
-
-        // Return success anyway - we don't want to lose the booking
-        return NextResponse.json({
-          success: true,
-          message:
-            "Your booking request has been received! We will contact you shortly to confirm.",
-          booking: {
-            id: confirmationToken,
+    // Return success
+    return NextResponse.json({
+      success: true,
+      message:
+        "Your booking request has been received! We will contact you shortly to confirm.",
+      booking: {
+        id: submission.id,
             confirmation_token: confirmationToken,
             start_time: startDate.toISOString(),
             end_time: endDate.toISOString(),
