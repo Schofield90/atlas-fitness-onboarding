@@ -101,3 +101,30 @@ Last updated: October 17, 2025 19:15 - CRITICAL: Fix Next.js fetch() caching + r
 - This fixes: chat history not loading, second messages disappearing
 Force gym-dashboard deployment - GHL API caching fix (c0d07ca2)
 # Trigger deployment - timezone fix deployment verification
+
+### October 18, 2025 - 🔧 CRITICAL FIX: GoHighLevel Times Off By 1 Hour
+
+- **ISSUE**: Times showing 1 hour earlier than they should be (8:30am instead of 9:30am)
+- **USER FEEDBACK**: "My calls should start at 9.30am but the live test shows 8.30am so its out by one hour!"
+- **ROOT CAUSE**: JavaScript date formatting losing timezone information from ISO 8601 strings
+  - GHL API returns: `2025-10-21T09:30:00+01:00` (9:30am BST - correct)
+  - Code used: `new Date(slot.startTime).getHours()` → Returns UTC hour (8 instead of 9)
+  - Code used: `toTimeString()` → Converts to server's local timezone (UTC in production)
+- **FIX APPLIED**: Added `timeZone: 'Europe/London'` to ALL time formatting calls
+  - Line 134-139: Debug logging - first 5 slots
+  - Line 157-162: Exact time match finding
+  - Line 175-179: Hour grouping (morning/afternoon/evening)
+  - Line 190-195: Slot formatting for messages
+  - Line 238-243: First available slot logging
+  - Line 929-933: Check availability hour grouping
+  - Line 944-949: Check availability slot formatting
+  - Line 975-1003: Response data time formatting (morningSlots, afternoonSlots, eveningSlots)
+- **TECHNICAL DETAILS**:
+  - `new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/London', ... })`
+  - Preserves original BST/GMT timezone from ISO 8601 string
+  - Works for both BST (UTC+1) and GMT (UTC+0) periods
+- **FILES CHANGED**:
+  - `/app/lib/ai-agents/tools/gohighlevel-tools.ts` (9 locations)
+  - `/apps/gym-dashboard/app/lib/ai-agents/tools/gohighlevel-tools.ts` (copied from root)
+- **EXPECTED RESULT**: Times now display correctly in BST/GMT (9:30am shows as 9:30am, not 8:30am)
+- **TEST**: Check booking times for any day - should match GHL calendar times exactly

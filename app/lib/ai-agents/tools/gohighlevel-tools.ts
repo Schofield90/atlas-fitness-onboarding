@@ -131,7 +131,12 @@ export class BookGHLAppointmentTool extends BaseTool {
       console.log(`[GHL Tool] Retrieved ${availableSlots.length} available slots from GHL API`);
       if (availableSlots.length > 0) {
         const firstFive = availableSlots.slice(0, 5).map(s =>
-          new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+          new Date(s.startTime).toLocaleTimeString('en-GB', {
+            timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })
         );
         console.log(`[GHL Tool] First 5 slots: ${firstFive.join(', ')}`);
       }
@@ -153,7 +158,13 @@ export class BookGHLAppointmentTool extends BaseTool {
         // User requested specific time - find exact match
         console.log(`[GHL Tool] Looking for exact match for time: ${parsedTime}`);
         selectedSlot = availableSlots.find((slot) => {
-          const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+          // Format time in Europe/London timezone (preserves BST/GMT from original ISO string)
+          const slotTime = new Date(slot.startTime).toLocaleTimeString('en-GB', {
+            timeZone: 'Europe/London',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
           return slotTime === parsedTime;
         });
 
@@ -165,7 +176,12 @@ export class BookGHLAppointmentTool extends BaseTool {
           const eveningSlots: any[] = [];
 
           availableSlots.forEach(slot => {
-            const hour = new Date(slot.startTime).getHours();
+            // Get hour in Europe/London timezone (preserves BST/GMT from original ISO string)
+            const hour = parseInt(new Date(slot.startTime).toLocaleString('en-GB', {
+              timeZone: 'Europe/London',
+              hour: 'numeric',
+              hour12: false
+            }));
             if (hour < 12) {
               morningSlots.push(slot);
             } else if (hour < 17) {
@@ -177,6 +193,7 @@ export class BookGHLAppointmentTool extends BaseTool {
 
           const formatSlots = (slots: any[]) => slots
             .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
               hour: '2-digit',
               minute: '2-digit',
               hour12: false
@@ -218,7 +235,12 @@ export class BookGHLAppointmentTool extends BaseTool {
       } else {
         // No specific time requested - use first available
         selectedSlot = availableSlots[0];
-        const firstTime = new Date(selectedSlot.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const firstTime = new Date(selectedSlot.startTime).toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
         console.log(`[GHL Tool] No specific time requested, using first available slot: ${firstTime}`);
       }
 
@@ -903,7 +925,12 @@ export class CheckGHLAvailabilityTool extends BaseTool {
       const eveningSlots: any[] = [];
 
       availableSlots.forEach(slot => {
-        const hour = new Date(slot.startTime).getHours();
+        // Get hour in Europe/London timezone (preserves BST/GMT from original ISO string)
+        const hour = parseInt(new Date(slot.startTime).toLocaleString('en-GB', {
+          timeZone: 'Europe/London',
+          hour: 'numeric',
+          hour12: false
+        }));
         if (hour < 12) {
           morningSlots.push(slot);
         } else if (hour < 17) {
@@ -915,6 +942,7 @@ export class CheckGHLAvailabilityTool extends BaseTool {
 
       const formatSlots = (slots: any[]) => slots
         .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
           hour: '2-digit',
           minute: '2-digit',
           hour12: false
@@ -944,17 +972,32 @@ export class CheckGHLAvailabilityTool extends BaseTool {
           date: parsedDate,
           totalSlots: availableSlots.length,
           morningSlots: morningSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),
           afternoonSlots: afternoonSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),
           eveningSlots: eveningSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),

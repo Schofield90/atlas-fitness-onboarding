@@ -131,7 +131,12 @@ export class BookGHLAppointmentTool extends BaseTool {
       console.log(`[GHL Tool] Retrieved ${availableSlots.length} available slots from GHL API`);
       if (availableSlots.length > 0) {
         const firstFive = availableSlots.slice(0, 5).map(s =>
-          new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+          new Date(s.startTime).toLocaleTimeString('en-GB', {
+            timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })
         );
         console.log(`[GHL Tool] First 5 slots: ${firstFive.join(', ')}`);
       }
@@ -153,7 +158,13 @@ export class BookGHLAppointmentTool extends BaseTool {
         // User requested specific time - find exact match
         console.log(`[GHL Tool] Looking for exact match for time: ${parsedTime}`);
         selectedSlot = availableSlots.find((slot) => {
-          const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+          // Format time in Europe/London timezone (preserves BST/GMT from original ISO string)
+          const slotTime = new Date(slot.startTime).toLocaleTimeString('en-GB', {
+            timeZone: 'Europe/London',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
           return slotTime === parsedTime;
         });
 
@@ -165,7 +176,12 @@ export class BookGHLAppointmentTool extends BaseTool {
           const eveningSlots: any[] = [];
 
           availableSlots.forEach(slot => {
-            const hour = new Date(slot.startTime).getHours();
+            // Get hour in Europe/London timezone (preserves BST/GMT from original ISO string)
+            const hour = parseInt(new Date(slot.startTime).toLocaleString('en-GB', {
+              timeZone: 'Europe/London',
+              hour: 'numeric',
+              hour12: false
+            }));
             if (hour < 12) {
               morningSlots.push(slot);
             } else if (hour < 17) {
@@ -177,6 +193,7 @@ export class BookGHLAppointmentTool extends BaseTool {
 
           const formatSlots = (slots: any[]) => slots
             .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
               hour: '2-digit',
               minute: '2-digit',
               hour12: false
@@ -218,7 +235,12 @@ export class BookGHLAppointmentTool extends BaseTool {
       } else {
         // No specific time requested - use first available
         selectedSlot = availableSlots[0];
-        const firstTime = new Date(selectedSlot.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const firstTime = new Date(selectedSlot.startTime).toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
         console.log(`[GHL Tool] No specific time requested, using first available slot: ${firstTime}`);
       }
 
@@ -277,46 +299,70 @@ export class BookGHLAppointmentTool extends BaseTool {
     const date = preferredDate || new Date().toISOString().split("T")[0];
 
     // Convert date to Unix timestamps (milliseconds) for GHL v2 API
-    // IMPORTANT: Use Date.UTC() to ensure we're working in UTC, not local timezone
+    // IMPORTANT: GHL expects timestamps in calendar's LOCAL timezone (Europe/London), not UTC
+    // For Sunday Oct 19 2025 in BST (UTC+1), we need Saturday Oct 18 23:00 UTC
     const [year, month, day] = date.split('-').map(Number);
-    const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+
+    // Create date at midnight in the calendar's timezone (Europe/London)
+    // In 2025, UK uses BST (UTC+1) from March 30 to October 26
+    // To get midnight London time, subtract 1 hour from UTC during BST
+    const dateInUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const isDST = this.isDaylightSavingTime(dateInUTC);
+    const timezoneOffsetMs = isDST ? (1 * 60 * 60 * 1000) : 0; // BST = UTC+1, GMT = UTC+0
+
+    const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - timezoneOffsetMs;
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
+
+    // DIAGNOSTIC: Log timezone calculation details
+    console.info("[GHL_TIMEZONE_CALC]", {
+      requestedDate: date,
+      parsedDate: { year, month, day },
+      isDST,
+      timezoneOffsetMs,
+      startDateUTC: new Date(startDate).toISOString(),
+      endDateUTC: new Date(endDate).toISOString(),
+      startDateLondon: new Date(startDate).toLocaleString('en-GB', { timeZone: 'Europe/London' }),
+      startTimestamp: startDate,
+      endTimestamp: endDate,
+    });
 
     // Fetch available slots from GHL v2 API
     // NOTE: This endpoint automatically filters out already-booked appointments
-    const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Version: "2021-07-28",
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        next: { revalidate: 0 },
+    const url = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`;
+    console.info("[GHL_API_REQUEST]", { url, calendarId, date });
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-07-28",
+        "Content-Type": "application/json",
       },
-    );
+      cache: "no-store",
+      next: { revalidate: 0 },
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("[GHL_API_ERROR]", { status: response.status, statusText: response.statusText, errorText });
       throw new Error(`Failed to fetch calendar slots: ${response.statusText} - ${errorText}`);
     }
 
     const slotsData = await response.json();
 
-    // DIAGNOSTIC: Log raw GHL API response (first 3 slots only, no PII)
+    // DIAGNOSTIC: Log raw GHL API response
     console.info("[GHL_API_RESPONSE]", {
       calendarId,
       date,
-      totalKeys: Object.keys(slotsData).length,
-      dateKeys: Object.keys(slotsData).filter(k => k !== "traceId"),
-      sampleSlots: Object.entries(slotsData)
+      rawResponse: JSON.stringify(slotsData).substring(0, 500), // First 500 chars
+      totalKeys: typeof slotsData === 'object' ? Object.keys(slotsData).length : 0,
+      dateKeys: typeof slotsData === 'object' ? Object.keys(slotsData).filter(k => k !== "traceId") : [],
+      sampleSlots: typeof slotsData === 'object' ? Object.entries(slotsData)
         .filter(([k]) => k !== "traceId")
         .map(([dateKey, data]: [string, any]) => ({
           date: dateKey,
           slotCount: data?.slots?.length || 0,
           firstThreeSlots: data?.slots?.slice(0, 3) || []
-        }))
+        })) : []
     });
 
     // Convert API response to slot objects
@@ -496,6 +542,26 @@ export class BookGHLAppointmentTool extends BaseTool {
     }
 
     return undefined;
+  }
+
+  /**
+   * Determine if a given date is in British Summer Time (BST) or GMT
+   * BST runs from last Sunday in March to last Sunday in October
+   * @param date Date to check
+   * @returns true if date is in BST (UTC+1), false if GMT (UTC+0)
+   */
+  private isDaylightSavingTime(date: Date): boolean {
+    const year = date.getUTCFullYear();
+
+    // Get last Sunday in March (BST start)
+    const marchLast = new Date(Date.UTC(year, 2, 31)); // March 31
+    const marchLastSunday = new Date(Date.UTC(year, 2, 31 - marchLast.getUTCDay(), 1, 0, 0, 0));
+
+    // Get last Sunday in October (BST end)
+    const octoberLast = new Date(Date.UTC(year, 9, 31)); // October 31
+    const octoberLastSunday = new Date(Date.UTC(year, 9, 31 - octoberLast.getUTCDay(), 1, 0, 0, 0));
+
+    return date >= marchLastSunday && date < octoberLastSunday;
   }
 }
 
@@ -859,7 +925,12 @@ export class CheckGHLAvailabilityTool extends BaseTool {
       const eveningSlots: any[] = [];
 
       availableSlots.forEach(slot => {
-        const hour = new Date(slot.startTime).getHours();
+        // Get hour in Europe/London timezone (preserves BST/GMT from original ISO string)
+        const hour = parseInt(new Date(slot.startTime).toLocaleString('en-GB', {
+          timeZone: 'Europe/London',
+          hour: 'numeric',
+          hour12: false
+        }));
         if (hour < 12) {
           morningSlots.push(slot);
         } else if (hour < 17) {
@@ -871,6 +942,7 @@ export class CheckGHLAvailabilityTool extends BaseTool {
 
       const formatSlots = (slots: any[]) => slots
         .map(slot => new Date(slot.startTime).toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
           hour: '2-digit',
           minute: '2-digit',
           hour12: false
@@ -900,17 +972,32 @@ export class CheckGHLAvailabilityTool extends BaseTool {
           date: parsedDate,
           totalSlots: availableSlots.length,
           morningSlots: morningSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),
           afternoonSlots: afternoonSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),
           eveningSlots: eveningSlots.map(s => ({
-            time: new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: new Date(s.startTime).toLocaleTimeString('en-GB', {
+              timeZone: 'Europe/London',  // Preserve BST/GMT from original ISO string
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }),
             startTime: s.startTime,
             endTime: s.endTime,
           })),

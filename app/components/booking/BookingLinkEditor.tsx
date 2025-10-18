@@ -90,7 +90,7 @@ export default function BookingLinkEditor({
     slug: "",
     description: "",
     type: "individual",
-    appointment_type_ids: [],
+    appointment_type_ids: [], // Empty array - no longer required
     is_active: true,
     is_public: true,
     requires_auth: false,
@@ -142,7 +142,7 @@ export default function BookingLinkEditor({
   });
 
   useEffect(() => {
-    fetchAppointmentTypes();
+    // fetchAppointmentTypes(); // Removed - no longer required
     fetchStaffMembers();
 
     if (bookingLinkId) {
@@ -674,61 +674,7 @@ const DetailsTab = ({
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Available Appointment Types *
-            </label>
-            {appointmentTypes.length === 0 ? (
-              <div className="text-sm text-gray-400 p-3 bg-gray-700 rounded">
-                <p>No appointment types found.</p>
-                <Link
-                  href="/settings/booking"
-                  className="text-orange-500 hover:text-orange-400 underline"
-                >
-                  Create appointment types first →
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-600 rounded p-3">
-                {appointmentTypes.map((type) => (
-                  <label key={type.id} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={
-                        formData.appointment_type_ids?.includes(type.id) ||
-                        false
-                      }
-                      onChange={(e) => {
-                        const currentIds = formData.appointment_type_ids || [];
-                        if (e.target.checked) {
-                          setFormData({
-                            ...formData,
-                            appointment_type_ids: [...currentIds, type.id],
-                          });
-                        } else {
-                          setFormData({
-                            ...formData,
-                            appointment_type_ids: currentIds.filter(
-                              (id) => id !== type.id,
-                            ),
-                          });
-                        }
-                      }}
-                      className="mr-3"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm text-gray-300">{type.name}</span>
-                      <div className="text-xs text-gray-500">
-                        {type.duration_minutes} min • {type.session_type}
-                        {type.max_capacity > 1 &&
-                          ` • Max ${type.max_capacity} people`}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Appointment types section removed - no longer required */}
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
