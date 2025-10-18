@@ -91,10 +91,54 @@ export async function POST(request: NextRequest) {
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15);
 
+    // Find or create lead for this booking
+    let leadId = null;
+
+    // Check if lead exists by email
+    const { data: existingLead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("organization_id", bookingLink.organization_id)
+      .eq("email", attendee_email)
+      .maybeSingle();
+
+    if (existingLead) {
+      leadId = existingLead.id;
+      console.log("Found existing lead:", leadId);
+    } else {
+      // Create new lead
+      const nameParts = attendee_name.split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      const { data: newLead, error: leadError } = await supabase
+        .from("leads")
+        .insert({
+          organization_id: bookingLink.organization_id,
+          first_name: firstName,
+          last_name: lastName,
+          email: attendee_email,
+          phone: attendee_phone || null,
+          status: "new",
+          source: "booking_widget",
+          notes: notes || null,
+        })
+        .select("id")
+        .single();
+
+      if (!leadError && newLead) {
+        leadId = newLead.id;
+        console.log("Created new lead:", leadId);
+      } else {
+        console.warn("Failed to create lead:", leadError);
+      }
+    }
+
     // Create booking submission
     const submissionData = {
       booking_link_id: bookingLink.id,
       organization_id: bookingLink.organization_id,
+      lead_id: leadId,
       attendee_name,
       attendee_email,
       attendee_phone: attendee_phone || null,

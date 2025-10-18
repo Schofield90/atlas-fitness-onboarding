@@ -96,10 +96,46 @@ export function EventDetailsModal({
                 <Users className="h-4 w-4 text-gray-500" />
                 <span>Attendees ({event.attendees.length})</span>
               </div>
-              <div className="space-y-1 ml-6">
+              <div className="space-y-2 ml-6">
                 {event.attendees.map((attendee, index) => (
-                  <div key={index} className="text-sm text-gray-400">
-                    {attendee.name || attendee.email}
+                  <div key={index} className="text-sm space-y-1">
+                    {/* Name - clickable if lead exists */}
+                    <div className="font-medium text-white">
+                      {(attendee as any).leadId ? (
+                        <a
+                          href={`/leads/${(attendee as any).leadId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-blue-400 transition-colors underline cursor-pointer"
+                        >
+                          {attendee.name || attendee.email}
+                        </a>
+                      ) : (
+                        attendee.name || attendee.email
+                      )}
+                    </div>
+                    {/* Email */}
+                    {attendee.email && (
+                      <div className="text-gray-400">
+                        <a
+                          href={`mailto:${attendee.email}`}
+                          className="hover:text-blue-400 transition-colors"
+                        >
+                          {attendee.email}
+                        </a>
+                      </div>
+                    )}
+                    {/* Phone */}
+                    {attendee.phone && (
+                      <div className="text-gray-400">
+                        <a
+                          href={`tel:${attendee.phone}`}
+                          className="hover:text-blue-400 transition-colors"
+                        >
+                          {attendee.phone}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

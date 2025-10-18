@@ -111,11 +111,12 @@ export async function GET(request: NextRequest) {
           name: submission.attendee_name,
           email: submission.attendee_email,
           phone: submission.attendee_phone,
+          leadId: submission.lead_id, // Include lead_id for profile linking
         },
       ],
       meetingUrl: null,
       status: submission.status, // "pending", "confirmed", "cancelled"
-      leadId: null,
+      leadId: submission.lead_id,
       organizationId: submission.organization_id,
       createdBy: null,
       googleEventId: null,
