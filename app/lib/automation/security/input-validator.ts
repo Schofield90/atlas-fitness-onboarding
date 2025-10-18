@@ -310,13 +310,13 @@ export class AutomationInputValidator {
         : "draft",
       workflowData: {
         nodes: Array.isArray(workflow.workflowData?.nodes)
-          ? workflow.workflowData.nodes.map(this.sanitizeNode)
+          ? workflow.workflowData.nodes.map((node) => this.sanitizeNode(node))
           : [],
         edges: Array.isArray(workflow.workflowData?.edges)
-          ? workflow.workflowData.edges.map(this.sanitizeEdge)
+          ? workflow.workflowData.edges.map((edge) => this.sanitizeEdge(edge))
           : [],
         variables: Array.isArray(workflow.workflowData?.variables)
-          ? workflow.workflowData.variables.map(this.sanitizeVariable)
+          ? workflow.workflowData.variables.map((variable) => this.sanitizeVariable(variable))
           : [],
       },
       triggerType: workflow.triggerType,
