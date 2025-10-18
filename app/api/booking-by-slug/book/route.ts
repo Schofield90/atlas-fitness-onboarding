@@ -123,60 +123,10 @@ export async function POST(request: NextRequest) {
         "Your booking request has been received! We will contact you shortly to confirm.",
       booking: {
         id: submission.id,
-            confirmation_token: confirmationToken,
-            start_time: startDate.toISOString(),
-            end_time: endDate.toISOString(),
-            status: "pending",
-          },
-        });
-      }
-
-      console.log("Created lead as fallback:", lead);
-    }
-
-    // Try to create Google Calendar event if user is connected
-    if (linkData.user_id) {
-      try {
-        const googleEvent = await createGoogleCalendarEvent(linkData.user_id, {
-          summary: `Booking: ${attendee_name}`,
-          description: `Email: ${attendee_email}\nPhone: ${attendee_phone || "N/A"}\nNotes: ${notes || "N/A"}`,
-          start: {
-            dateTime: startDate.toISOString(),
-            timeZone: timezone || "Europe/London",
-          },
-          end: {
-            dateTime: endDate.toISOString(),
-            timeZone: timezone || "Europe/London",
-          },
-          attendees: [{ email: attendee_email }],
-          reminders: {
-            useDefault: false,
-            overrides: [
-              { method: "email", minutes: 1440 }, // 24 hours
-              { method: "popup", minutes: 30 },
-            ],
-          },
-        });
-        console.log("Google Calendar event created:", googleEvent?.id);
-      } catch (gcalError) {
-        console.warn("Could not create Google Calendar event:", gcalError);
-        // Continue anyway - booking is still successful
-      }
-    }
-
-    // Return success response
-    const successMessage =
-      "Your booking has been confirmed! You will receive a confirmation email shortly.";
-
-    return NextResponse.json({
-      success: true,
-      message: successMessage,
-      booking: {
-        id: calendarEvent?.id || confirmationToken,
         confirmation_token: confirmationToken,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
-        status: "confirmed",
+        status: "pending",
       },
     });
   } catch (error: any) {

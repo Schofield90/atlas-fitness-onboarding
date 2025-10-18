@@ -235,11 +235,14 @@ ${generalTones.join('\n\n---\n\n')}
       // Add self-debugging instructions to prevent hallucinations (NEW)
       let finalPrompt = addSelfDebugInstructions(promptWithSops);
 
-      // Add current date/time dynamically (always fresh for each conversation)
+      // Add current date/time context (SERVER-SIDE SOURCE OF TRUTH)
+      // This is computed once per conversation and passed to the agent
       const now = new Date();
+      const todayISODate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const nowISO = now.toISOString(); // Full ISO with timezone
+      const epochMs = now.getTime();
 
-      console.log('[Orchestrator] Generating date header at:', now.toISOString());
-
+      // Format for human readability
       const ukDateTime = now.toLocaleString('en-GB', {
         timeZone: 'Europe/London',
         weekday: 'long',
@@ -254,17 +257,28 @@ ${generalTones.join('\n\n---\n\n')}
         timeZone: 'Europe/London',
         weekday: 'long'
       });
-      const isoDate = now.toISOString().split('T')[0];
 
-      console.log('[Orchestrator] UK DateTime:', ukDateTime);
-      console.log('[Orchestrator] Day of Week:', dayOfWeek);
-      console.log('[Orchestrator] ISO Date:', isoDate);
+      console.log('[Orchestrator] Date context:', {
+        todayISODate,
+        nowISO,
+        epochMs,
+        dayOfWeek,
+        ukDateTime
+      });
 
-      const dateHeader = `CURRENT DATE/TIME:
-Today is ${ukDateTime} (${dayOfWeek})
-ISO Date: ${isoDate}
+      const dateHeader = `# CURRENT DATE/TIME (SOURCE OF TRUTH)
 
-IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}.
+**IMPORTANT**: Use this as your ONLY source of truth for the current date and time. Never infer the date from memory or context.
+
+- **Today's Date (ISO)**: ${todayISODate}
+- **Day of Week**: ${dayOfWeek}
+- **Current Time**: ${ukDateTime}
+- **Timezone**: Europe/London
+- **Unix Timestamp**: ${epochMs}
+
+When the user asks "what day is it" or you need to know the current date, use the information above.
+
+---
 
 `;
 
@@ -274,8 +288,10 @@ IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateS
     } catch (error) {
       console.error('[Orchestrator] Error loading SOPs:', error);
 
-      // If SOP loading fails, still add current date and self-debug instructions
+      // If SOP loading fails, still add current date context
       const now = new Date();
+      const todayISODate = now.toISOString().split('T')[0];
+      const epochMs = now.getTime();
       const ukDateTime = now.toLocaleString('en-GB', {
         timeZone: 'Europe/London',
         weekday: 'long',
@@ -290,13 +306,20 @@ IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateS
         timeZone: 'Europe/London',
         weekday: 'long'
       });
-      const isoDate = now.toISOString().split('T')[0];
 
-      const dateHeader = `CURRENT DATE/TIME:
-Today is ${ukDateTime} (${dayOfWeek})
-ISO Date: ${isoDate}
+      const dateHeader = `# CURRENT DATE/TIME (SOURCE OF TRUTH)
 
-IMPORTANT: You are having this conversation on ${dayOfWeek}, ${now.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}.
+**IMPORTANT**: Use this as your ONLY source of truth for the current date and time. Never infer the date from memory or context.
+
+- **Today's Date (ISO)**: ${todayISODate}
+- **Day of Week**: ${dayOfWeek}
+- **Current Time**: ${ukDateTime}
+- **Timezone**: Europe/London
+- **Unix Timestamp**: ${epochMs}
+
+When the user asks "what day is it" or you need to know the current date, use the information above.
+
+---
 
 `;
 
