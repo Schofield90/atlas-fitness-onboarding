@@ -311,8 +311,9 @@ When the user asks "what day is it" or you need to know the current date, use th
       const now = new Date();
       const todayISODate = now.toISOString().split('T')[0];
       const epochMs = now.getTime();
-      const ukDateTime = now.toLocaleString('en-GB', {
-        timeZone: 'Europe/London',
+      const fallbackTimezone = 'Europe/London';
+      const localDateTime = now.toLocaleString('en-GB', {
+        timeZone: fallbackTimezone,
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -322,7 +323,7 @@ When the user asks "what day is it" or you need to know the current date, use th
         hour12: false
       });
       const dayOfWeek = now.toLocaleDateString('en-GB', {
-        timeZone: 'Europe/London',
+        timeZone: fallbackTimezone,
         weekday: 'long'
       });
 
@@ -333,7 +334,7 @@ When the user asks "what day is it" or you need to know the current date, use th
 - **Today's Date (ISO)**: ${todayISODate}
 - **Day of Week**: ${dayOfWeek}
 - **Current Time**: ${localDateTime}
-- **Timezone**: ${orgTimezone}
+- **Timezone**: ${fallbackTimezone}
 - **Unix Timestamp**: ${epochMs}
 
 When the user asks "what day is it" or you need to know the current date, use the information above.
