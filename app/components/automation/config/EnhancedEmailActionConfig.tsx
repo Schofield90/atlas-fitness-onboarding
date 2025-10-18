@@ -162,36 +162,27 @@ export default function EnhancedEmailActionConfig({
   );
 
   const availableVariables = [
-    { key: "{{first_name}}", label: "First Name", category: "Contact" },
-    { key: "{{last_name}}", label: "Last Name", category: "Contact" },
-    { key: "{{full_name}}", label: "Full Name", category: "Contact" },
-    { key: "{{email}}", label: "Email", category: "Contact" },
-    { key: "{{phone}}", label: "Phone", category: "Contact" },
-    {
-      key: "{{organization_name}}",
-      label: "Organization Name",
-      category: "Organization",
-    },
-    { key: "{{current_date}}", label: "Current Date", category: "System" },
-    { key: "{{current_time}}", label: "Current Time", category: "System" },
-    { key: "{{lead_source}}", label: "Lead Source", category: "Lead Data" },
-    { key: "{{interest}}", label: "Interest/Goal", category: "Lead Data" },
-    { key: "{{tags}}", label: "Lead Tags", category: "Lead Data" },
-    {
-      key: "{{membership_type}}",
-      label: "Membership Type",
-      category: "Membership",
-    },
-    {
-      key: "{{next_appointment}}",
-      label: "Next Appointment",
-      category: "Schedule",
-    },
-    {
-      key: "{{last_interaction}}",
-      label: "Last Interaction",
-      category: "Activity",
-    },
+    { key: "{{user.first_name}}", label: "First Name", category: "Contact" },
+    { key: "{{user.last_name}}", label: "Last Name", category: "Contact" },
+    { key: "{{user.full_name}}", label: "Full Name", category: "Contact" },
+    { key: "{{user.email}}", label: "Email", category: "Contact" },
+    { key: "{{user.phone}}", label: "Phone", category: "Contact" },
+    { key: "{{appointment.only_start_date}}", label: "Appointment Date", category: "Appointment" },
+    { key: "{{appointment.only_start_time}}", label: "Appointment Time", category: "Appointment" },
+    { key: "{{appointment.full_datetime}}", label: "Full Appointment", category: "Appointment" },
+    { key: "{{appointment.location}}", label: "Appointment Location", category: "Appointment" },
+    { key: "{{appointment.type}}", label: "Appointment Type", category: "Appointment" },
+    { key: "{{organization.name}}", label: "Gym Name", category: "Organization" },
+    { key: "{{organization.phone}}", label: "Gym Phone", category: "Organization" },
+    { key: "{{organization.address}}", label: "Gym Address", category: "Organization" },
+    { key: "{{organization.email}}", label: "Gym Email", category: "Organization" },
+    { key: "{{current.date}}", label: "Current Date", category: "System" },
+    { key: "{{current.time}}", label: "Current Time", category: "System" },
+    { key: "{{lead.source}}", label: "Lead Source", category: "Lead Data" },
+    { key: "{{lead.interest}}", label: "Interest/Goal", category: "Lead Data" },
+    { key: "{{lead.tags}}", label: "Lead Tags", category: "Lead Data" },
+    { key: "{{membership.type}}", label: "Membership Type", category: "Membership" },
+    { key: "{{membership.status}}", label: "Membership Status", category: "Membership" }
   ];
 
   useEffect(() => {

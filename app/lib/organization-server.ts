@@ -12,11 +12,14 @@ export async function getCurrentUserOrganization() {
     }
 
     // Get user's organization from user_organizations table
+    // Use .maybeSingle() to handle cases where user has 0 or multiple orgs
     const { data: userOrg, error: userOrgError } = await supabase
       .from('user_organizations')
       .select('organization_id')
       .eq('user_id', user.id)
-      .single()
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (userOrgError || !userOrg?.organization_id) {
       console.error('No organization found in user_organizations:', userOrgError)

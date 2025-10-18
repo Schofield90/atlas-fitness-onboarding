@@ -400,6 +400,8 @@ function WorkflowBuilderInner({
   const [workflowName, setWorkflowName] = useState(
     workflow?.name || "New Workflow",
   );
+  const [showTriggerPalette, setShowTriggerPalette] = useState(false);
+  const [showNodePalette, setShowNodePalette] = useState(false);
 
   // Drop handler for the canvas
   const [{ isOver }, drop] = useDrop(
@@ -1490,6 +1492,43 @@ function WorkflowBuilderInner({
           className={`flex-1 relative ${isOver ? "ring-2 ring-orange-500 ring-opacity-50" : ""}`}
           ref={combinedRef}
         >
+          {/* Empty State - Select Trigger (GoHighLevel style) */}
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center pointer-events-auto bg-gray-800 px-12 py-8 rounded-lg border-2 border-dashed border-gray-600">
+                <Zap className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                <div className="text-xl font-medium text-gray-300">
+                  Select Trigger Event
+                </div>
+                <div className="text-sm text-gray-500 mt-2">
+                  Choose from the sidebar to get started
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Workflow with nodes - show dotted line and plus after trigger */}
+          {nodes.length === 1 && nodes[0].type === "trigger" && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-4 pointer-events-auto">
+                {/* Dotted line */}
+                <div className="h-24 border-l-2 border-dashed border-gray-600"></div>
+
+                {/* Plus button to add first action */}
+                <button
+                  onClick={() => {
+                    setShowNodePalette(true);
+                  }}
+                  className="w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-700 flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
+                  title="Add first action"
+                >
+                  <Plus className="h-6 w-6 text-white" />
+                </button>
+                <div className="text-sm text-gray-500">Add first action</div>
+              </div>
+            </div>
+          )}
+
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1738,6 +1777,137 @@ function WorkflowBuilderInner({
             }}
           />
         </ConfigPanelErrorBoundary>
+      )}
+
+      {/* Trigger Palette Modal */}
+      {showTriggerPalette && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Select Trigger Event</h2>
+              <button
+                onClick={() => setShowTriggerPalette(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                {nodePalette.triggers.map((trigger, index) => (
+                  <button
+                    key={`trigger-${index}`}
+                    onClick={() => {
+                      // Add trigger node at center
+                      const newNode: Node = {
+                        id: nanoid(),
+                        type: "trigger",
+                        position: { x: 250, y: 100 },
+                        data: {
+                          label: trigger.name,
+                          description: trigger.description,
+                          config: getDefaultNodeConfig("trigger", trigger.actionType),
+                          actionType: trigger.actionType,
+                        },
+                      };
+                      setNodes([newNode]);
+                      setShowTriggerPalette(false);
+
+                      // Auto-fit view to show the new trigger
+                      setTimeout(() => {
+                        reactFlowInstance?.fitView({ padding: 0.2 });
+                      }, 50);
+                    }}
+                    className="p-4 bg-gray-700 hover:bg-gray-600 border-2 border-transparent hover:border-orange-500 rounded-lg transition-all text-left group"
+                  >
+                    <div className="text-lg font-semibold text-white group-hover:text-orange-500 transition-colors mb-1">
+                      {trigger.name}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      {trigger.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Palette Modal (for first action after trigger) */}
+      {showNodePalette && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Add Action</h2>
+              <button
+                onClick={() => setShowNodePalette(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              {Object.entries(nodePalette)
+                .filter(([category]) => category !== "triggers")
+                .map(([category, items]) => (
+                  <div key={category} className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-300 mb-3 capitalize">
+                      {category}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {items.map((item, index) => (
+                        <button
+                          key={`${category}-${index}`}
+                          onClick={() => {
+                            // Add action node below the trigger
+                            const triggerNode = nodes[0];
+                            const newNode: Node = {
+                              id: nanoid(),
+                              type: item.type,
+                              position: { x: triggerNode.position.x, y: triggerNode.position.y + 150 },
+                              data: {
+                                label: item.name,
+                                description: item.description,
+                                config: getDefaultNodeConfig(item.type, item.actionType),
+                                actionType: item.actionType,
+                              },
+                            };
+
+                            // Add edge from trigger to first action
+                            const newEdge: Edge = {
+                              id: `${triggerNode.id}-${newNode.id}`,
+                              source: triggerNode.id,
+                              target: newNode.id,
+                              type: "smoothstep",
+                              animated: true,
+                            };
+
+                            setNodes([triggerNode, newNode]);
+                            setEdges([newEdge]);
+                            setShowNodePalette(false);
+
+                            // Auto-fit view
+                            setTimeout(() => {
+                              reactFlowInstance?.fitView({ padding: 0.2 });
+                            }, 50);
+                          }}
+                          className="p-4 bg-gray-700 hover:bg-gray-600 border-2 border-transparent hover:border-blue-500 rounded-lg transition-all text-left group"
+                        >
+                          <div className="text-base font-semibold text-white group-hover:text-blue-400 transition-colors mb-1">
+                            {item.name}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {item.description}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

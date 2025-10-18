@@ -131,18 +131,23 @@ export default function EnhancedSMSActionConfig({ config, onChange, organization
   })
 
   const availableVariables = [
-    { key: '[first_name]', label: 'First Name', example: 'John', category: 'Contact' },
-    { key: '[last_name]', label: 'Last Name', example: 'Doe', category: 'Contact' },
-    { key: '[full_name]', label: 'Full Name', example: 'John Doe', category: 'Contact' },
-    { key: '[organization_name]', label: 'Gym Name', example: 'Atlas Fitness', category: 'Organization' },
-    { key: '[phone]', label: 'Phone Number', example: '+447123456789', category: 'Contact' },
-    { key: '[email]', label: 'Email', example: 'john@example.com', category: 'Contact' },
-    { key: '[lead_source]', label: 'Lead Source', example: 'Facebook', category: 'Lead Data' },
-    { key: '[interest]', label: 'Interest/Goal', example: 'weight loss', category: 'Lead Data' },
-    { key: '[current_date]', label: 'Current Date', example: '31/01/2025', category: 'System' },
-    { key: '[current_time]', label: 'Current Time', example: '14:30', category: 'System' },
-    { key: '[next_appointment]', label: 'Next Appointment', example: 'Tomorrow at 3pm', category: 'Schedule' },
-    { key: '[membership_status]', label: 'Membership Status', example: 'Active', category: 'Membership' }
+    { key: '{{user.first_name}}', label: 'First Name', example: 'John', category: 'Contact' },
+    { key: '{{user.last_name}}', label: 'Last Name', example: 'Doe', category: 'Contact' },
+    { key: '{{user.full_name}}', label: 'Full Name', example: 'John Doe', category: 'Contact' },
+    { key: '{{user.email}}', label: 'Email', example: 'john@example.com', category: 'Contact' },
+    { key: '{{user.phone}}', label: 'Phone Number', example: '+447123456789', category: 'Contact' },
+    { key: '{{appointment.only_start_date}}', label: 'Appointment Date', example: '2025-01-31', category: 'Appointment' },
+    { key: '{{appointment.only_start_time}}', label: 'Appointment Time', example: '14:30', category: 'Appointment' },
+    { key: '{{appointment.full_datetime}}', label: 'Full Appointment', example: '31/01/2025 at 14:30', category: 'Appointment' },
+    { key: '{{appointment.location}}', label: 'Appointment Location', example: 'Main Studio', category: 'Appointment' },
+    { key: '{{appointment.type}}', label: 'Appointment Type', example: 'Discovery Call', category: 'Appointment' },
+    { key: '{{organization.name}}', label: 'Gym Name', example: 'Aimees Place', category: 'Organization' },
+    { key: '{{organization.phone}}', label: 'Gym Phone', example: '+441234567890', category: 'Organization' },
+    { key: '{{organization.address}}', label: 'Gym Address', example: '123 Main St', category: 'Organization' },
+    { key: '{{lead.source}}', label: 'Lead Source', example: 'Facebook', category: 'Lead Data' },
+    { key: '{{lead.interest}}', label: 'Interest/Goal', example: 'weight loss', category: 'Lead Data' },
+    { key: '{{current.date}}', label: 'Current Date', example: '31/01/2025', category: 'System' },
+    { key: '{{current.time}}', label: 'Current Time', example: '14:30', category: 'System' }
   ]
 
   useEffect(() => {
@@ -183,15 +188,21 @@ export default function EnhancedSMSActionConfig({ config, onChange, organization
       setTemplates([
         {
           id: '1',
-          name: 'Welcome Message',
-          message: 'Hi [first_name]! Welcome to [organization_name]. We\'re excited to help you reach your fitness goals! 💪',
-          variables: ['first_name', 'organization_name']
+          name: 'Appointment Confirmation',
+          message: 'Congrats! 👏 Your call is scheduled for {{appointment.only_start_date}} at {{appointment.only_start_time}}.\n\nLook forward to chatting then.\n\n{{user.first_name}}\n{{organization.name}}',
+          variables: ['user.first_name', 'appointment.only_start_date', 'appointment.only_start_time', 'organization.name']
         },
         {
           id: '2',
+          name: 'Welcome Message',
+          message: 'Hi {{user.first_name}}! Welcome to {{organization.name}}. We\'re excited to help you reach your fitness goals! 💪',
+          variables: ['user.first_name', 'organization.name']
+        },
+        {
+          id: '3',
           name: 'Appointment Reminder',
-          message: 'Hi [first_name]! Reminder: You have [next_appointment]. See you soon!',
-          variables: ['first_name', 'next_appointment']
+          message: 'Hi {{user.first_name}}! Reminder: Your {{appointment.type}} is scheduled for {{appointment.only_start_date}} at {{appointment.only_start_time}}. See you soon!',
+          variables: ['user.first_name', 'appointment.type', 'appointment.only_start_date', 'appointment.only_start_time']
         }
       ])
     } finally {
@@ -232,24 +243,14 @@ export default function EnhancedSMSActionConfig({ config, onChange, organization
     setAiGenerating(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const aiMessage = `Hi [first_name]! 👋
 
-Ready to crush your fitness goals at [organization_name]? 
+      const aiMessage = `Congrats! 👏 Your call is scheduled for {{appointment.only_start_date}} at {{appointment.only_start_time}}.
 
-I noticed you're interested in [interest] - we have an amazing program that's perfect for you! 🎯
+Look forward to chatting then.
 
-✨ What you'll get:
-• Personalized workout plans
-• Expert coaching & support
-• A community that cheers you on
+{{user.first_name}}
+{{organization.name}}`
 
-Reply YES to claim your FREE trial session, or call us to chat about your goals.
-
-Let's make it happen! 💪
-
-[organization_name] Team`
-      
       handleMessageChange(aiMessage)
     } catch (error) {
       console.error('AI generation error:', error)
@@ -283,22 +284,27 @@ Let's make it happen! 💪
       
       // Replace variables with sample data
       const sampleData: Record<string, string> = {
-        '[first_name]': 'John',
-        '[last_name]': 'Doe',
-        '[full_name]': 'John Doe',
-        '[organization_name]': 'Atlas Fitness',
-        '[phone]': testPhone,
-        '[email]': 'john@example.com',
-        '[lead_source]': 'Website',
-        '[interest]': 'Personal Training',
-        '[current_date]': new Date().toLocaleDateString('en-GB'),
-        '[current_time]': new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-        '[next_appointment]': 'Tomorrow at 3pm',
-        '[membership_status]': 'Active'
+        '{{user.first_name}}': 'John',
+        '{{user.last_name}}': 'Doe',
+        '{{user.full_name}}': 'John Doe',
+        '{{user.email}}': 'john@example.com',
+        '{{user.phone}}': testPhone,
+        '{{appointment.only_start_date}}': '2025-02-01',
+        '{{appointment.only_start_time}}': '14:30',
+        '{{appointment.full_datetime}}': '01/02/2025 at 14:30',
+        '{{appointment.location}}': 'Main Studio',
+        '{{appointment.type}}': 'Discovery Call',
+        '{{organization.name}}': 'Aimees Place',
+        '{{organization.phone}}': '+441234567890',
+        '{{organization.address}}': '123 Main St, Bedford',
+        '{{lead.source}}': 'Website',
+        '{{lead.interest}}': 'Personal Training',
+        '{{current.date}}': new Date().toLocaleDateString('en-GB'),
+        '{{current.time}}': new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       }
-      
+
       Object.entries(sampleData).forEach(([key, value]) => {
-        testMessage = testMessage.replace(new RegExp(key.replace('[', '\\[').replace(']', '\\]'), 'g'), value)
+        testMessage = testMessage.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value)
       })
       
       const response = await fetch('/api/sms/test', {
@@ -334,11 +340,11 @@ Let's make it happen! 💪
 
   const renderPreview = () => {
     let preview = message
-    
+
     // Replace variables with example data
     availableVariables.forEach(variable => {
       preview = preview.replace(
-        new RegExp(variable.key.replace('[', '\\[').replace(']', '\\]'), 'g'), 
+        new RegExp(variable.key.replace(/[{}]/g, '\\$&'), 'g'),
         variable.example
       )
     })
