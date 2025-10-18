@@ -100,3 +100,4 @@ Last updated: October 17, 2025 19:15 - CRITICAL: Fix Next.js fetch() caching + r
 - Query now works: returns 32 conversations successfully
 - This fixes: chat history not loading, second messages disappearing
 Force gym-dashboard deployment - GHL API caching fix (c0d07ca2)
+# Trigger deployment - timezone fix deployment verification
