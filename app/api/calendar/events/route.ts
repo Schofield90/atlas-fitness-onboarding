@@ -66,6 +66,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Also fetch from booking_link_submissions
+    let submissionsQuery = supabase
+      .from("booking_link_submissions")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("start_time", { ascending: true });
+
+    if (startDate) {
+      submissionsQuery = submissionsQuery.gte("start_time", startDate);
+    }
+
+    if (endDate) {
+      submissionsQuery = submissionsQuery.lte("start_time", endDate);
+    }
+
+    const { data: submissions } = await submissionsQuery;
+
     // Transform database events to match CalendarEvent interface
     const transformedEvents = (events || []).map((event) => ({
       id: event.id,
@@ -82,9 +99,35 @@ export async function GET(request: NextRequest) {
       googleEventId: event.google_event_id,
     }));
 
+    // Transform booking submissions to calendar events
+    const submissionEvents = (submissions || []).map((submission) => ({
+      id: submission.id,
+      title: `Booking: ${submission.attendee_name}`,
+      description: submission.notes || `Booking from ${submission.attendee_email}`,
+      startTime: submission.start_time,
+      endTime: submission.end_time,
+      attendees: [
+        {
+          name: submission.attendee_name,
+          email: submission.attendee_email,
+          phone: submission.attendee_phone,
+        },
+      ],
+      meetingUrl: null,
+      status: submission.status, // "pending", "confirmed", "cancelled"
+      leadId: null,
+      organizationId: submission.organization_id,
+      createdBy: null,
+      googleEventId: null,
+      bookingSubmissionId: submission.id, // Mark as booking submission
+    }));
+
+    // Merge both event sources
+    const allEvents = [...transformedEvents, ...submissionEvents];
+
     return NextResponse.json({
-      events: transformedEvents,
-      total: transformedEvents.length,
+      events: allEvents,
+      total: allEvents.length,
     });
   } catch (error) {
     console.error("Error fetching events:", error);
