@@ -171,6 +171,29 @@ export async function POST(request: NextRequest) {
 
     console.log("Booking submission created successfully:", submission.id);
 
+    // Trigger workflow for call booking
+    try {
+      const { workflowService } = await import("@/src/services/workflow.service");
+      await workflowService.triggerEvent(
+        bookingLink.organization_id,
+        "call_booking.created",
+        {
+          booking_id: submission.id,
+          lead_id: leadId,
+          attendee_name,
+          attendee_email,
+          attendee_phone,
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString(),
+          notes,
+        },
+      );
+      console.log("Workflow triggered for call booking");
+    } catch (error) {
+      console.error("Failed to trigger workflow:", error);
+      // Don't fail the booking if workflow fails
+    }
+
     // Return success
     return NextResponse.json({
       success: true,
