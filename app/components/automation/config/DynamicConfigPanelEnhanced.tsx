@@ -62,6 +62,12 @@ const SMS_VARIABLES = [
 ]
 
 const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[] => {
+  console.log('🚀🚀🚀 [getNodeConfigSchema] FUNCTION CALLED!', {
+    nodeType: node.type,
+    nodeData: node.data,
+    actionType: node.data?.actionType
+  })
+
   const baseFields: FormField[] = [
     {
       key: 'label',
@@ -84,12 +90,14 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
   switch (node.type) {
     case 'trigger':
       // Check if it's a specific trigger type
-      const triggerType = node.data?.actionType === 'facebook_lead_form' 
-        ? 'facebook_lead_form' 
+      const triggerType = node.data?.actionType === 'facebook_lead_form'
+        ? 'facebook_lead_form'
         : node.data?.actionType === 'form_submitted'
         ? 'form_submitted'
         : node.data?.actionType === 'website_form'
         ? 'form_submitted' // Website form uses same config as form_submitted
+        : node.data?.actionType === 'call_booking.created'
+        ? 'call_booking'
         : node.data?.actionType === 'scheduled'
         ? 'scheduled_time'
         : node.data?.actionType === 'webhook'
@@ -97,6 +105,14 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
         : node.data?.subtype === 'webhook_received'
         ? 'webhook_received'
         : (node.data?.config?.subtype || 'lead_trigger')
+
+      console.log('🎯 [DynamicConfigPanel] Trigger Type Detection:')
+      console.log('🎯   actionType:', node.data?.actionType)
+      console.log('🎯   subtype:', node.data?.subtype)
+      console.log('🎯   config.subtype:', node.data?.config?.subtype)
+      console.log('🎯   DETECTED triggerType:', triggerType)
+      console.log('🎯   Full node.data:', node.data)
+
       return [
         ...baseFields,
         ...getTriggerFields(triggerType, dynamicData)
@@ -129,8 +145,12 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
 
 const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
   // For specific trigger types, don't show the dropdown
-  const hideDropdown = ['facebook_lead_form', 'form_submitted', 'scheduled_time', 'webhook_received'].includes(subtype)
-  
+  const hideDropdown = ['facebook_lead_form', 'form_submitted', 'scheduled_time', 'webhook_received', 'call_booking'].includes(subtype)
+
+  console.log('🔧 [getTriggerFields] CALLED WITH SUBTYPE:', subtype)
+  console.log('🔧 [getTriggerFields] hideDropdown:', hideDropdown)
+  console.log('🔧 [getTriggerFields] Is call_booking?', subtype === 'call_booking')
+
   const commonFields = hideDropdown ? [] : [
     {
       key: 'subtype',
@@ -322,6 +342,32 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
         }
       ]
 
+    case 'call_booking':
+      // Call Booking configuration - select which booking link triggers the workflow
+      const { bookingLinks = [], loadingBookingLinks = false } = dynamicData || {}
+
+      console.log('[getTriggerFields] CALL_BOOKING case executed!', {
+        bookingLinksCount: bookingLinks.length,
+        loadingBookingLinks
+      })
+
+      return [
+        {
+          key: 'booking_link_id',
+          label: 'Booking Link',
+          type: 'select' as const,
+          required: true,
+          options: loadingBookingLinks
+            ? [{ value: 'loading', label: 'Loading booking links...' }]
+            : bookingLinks.length > 0
+              ? bookingLinks
+              : [{ value: '', label: 'No booking links available - Please create one in Calendar & Booking Links' }],
+          description: bookingLinks.length === 0 && !loadingBookingLinks
+            ? 'No booking links found. Create a booking link in Calendar & Booking Links to use this trigger.'
+            : 'Select which booking link should trigger this workflow. The workflow will run whenever someone books a call through the selected link.'
+        }
+      ]
+
     case 'webhook_received':
       // Webhook configuration with detailed event types
       return [
@@ -419,6 +465,10 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
       ]
 
     default:
+      console.log('[getTriggerFields] DEFAULT case executed!', {
+        subtype,
+        commonFieldsCount: commonFields.length
+      })
       return commonFields
   }
 }
@@ -747,6 +797,8 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const [loadingFacebookForms, setLoadingFacebookForms] = useState(false)
   const [forms, setForms] = useState<Array<{ value: string; label: string }>>([])
   const [loadingForms, setLoadingForms] = useState(false)
+  const [bookingLinks, setBookingLinks] = useState<Array<{ value: string; label: string }>>([])
+  const [loadingBookingLinks, setLoadingBookingLinks] = useState(false)
   const [userPhone, setUserPhone] = useState('')
   const [userWhatsApp, setUserWhatsApp] = useState('')
 
@@ -886,6 +938,36 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       setForms([{ value: 'default', label: 'Default Lead Form' }])
     } finally {
       setLoadingForms(false)
+    }
+  }
+
+  // Fetch booking links
+  const fetchBookingLinks = async () => {
+    setLoadingBookingLinks(true)
+    try {
+      const response = await fetch(`/api/booking-links`)
+      if (response.ok) {
+        const data = await response.json()
+        // API returns booking_links (with underscore)
+        const links = data.booking_links || data.bookingLinks || []
+        if (links.length > 0) {
+          const linkOptions = links.map((link: any) => ({
+            value: link.id,
+            label: `${link.name} (${link.slug})${link.is_active ? '' : ' (Inactive)'}`
+          }))
+          setBookingLinks(linkOptions)
+        } else {
+          setBookingLinks([])
+        }
+      } else {
+        console.error('Error fetching booking links:', response.status, response.statusText)
+        setBookingLinks([])
+      }
+    } catch (error) {
+      console.error('Error fetching booking links:', error)
+      setBookingLinks([])
+    } finally {
+      setLoadingBookingLinks(false)
     }
   }
 
@@ -1051,6 +1133,8 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     config,
     forms,
     loadingForms,
+    bookingLinks,
+    loadingBookingLinks,
     onRefreshForms: fetchFacebookData,
     userPhone,
     userWhatsApp,
@@ -1299,6 +1383,10 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     }
     if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || node.data?.actionType === 'website_form' || config?.subtype === 'form_submitted')) {
       fetchForms()
+    }
+    if (node.type === 'trigger' && node.data?.actionType === 'call_booking.created') {
+      console.log('Call Booking trigger detected, fetching booking links...')
+      fetchBookingLinks()
     }
   }, [node?.type, node?.data?.actionType, config?.subtype]) // Removed fetchFacebookData and fetchForms from deps to prevent infinite loop
 

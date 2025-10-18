@@ -177,6 +177,14 @@ const nodePalette: Record<string, NodePaletteItem[]> = {
     {
       type: "trigger",
       category: "triggers",
+      name: "Call Booking",
+      description: "Triggers when someone books a call via booking widget",
+      icon: "Calendar",
+      actionType: "call_booking.created",
+    },
+    {
+      type: "trigger",
+      category: "triggers",
       name: "Manual Entry",
       description: "Triggers when a lead is manually added",
       icon: "UserPlus",
@@ -486,6 +494,18 @@ function WorkflowBuilderInner({
               },
               description: item.description || "",
               isValid: item.type === "trigger", // Triggers are valid by default
+              onSettings: (nodeId: string) => {
+                console.log('[WorkflowBuilder] onSettings called for node:', nodeId);
+                // Find and select the node
+                const node = nodes.find(n => n.id === nodeId);
+                console.log('[WorkflowBuilder] Found node:', node ? 'YES' : 'NO', node);
+                if (node) {
+                  console.log('[WorkflowBuilder] Opening config panel...');
+                  setConfigNode(node as WorkflowNode);
+                  setShowConfigPanel(true);
+                  setSelectedNode(nodeId);
+                }
+              },
             },
           };
 
@@ -625,6 +645,15 @@ function WorkflowBuilderInner({
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       try {
+        // Check if the click was on a settings button - if so, let the button handler take over
+        const target = event.target as HTMLElement;
+        const isSettingsButton = target.closest('button[data-settings="true"]');
+
+        if (isSettingsButton) {
+          console.log('[WorkflowBuilder] Click on settings button detected, skipping onNodeClick');
+          return; // Let the button's onClick handler handle this
+        }
+
         console.log("Node click event:", {
           nodeId: node.id,
           nodeType: node.type,

@@ -5,11 +5,22 @@ import { Handle, Position } from 'reactflow'
 import { Zap, Settings } from 'lucide-react'
 import type { CustomNodeProps } from '@/app/lib/types/automation'
 
-const TriggerNode = ({ data, selected }: CustomNodeProps) => {
+const TriggerNode = ({ data, selected, id }: CustomNodeProps) => {
+  console.log('[TriggerNode] Rendering node:', id, 'data.onSettings:', !!data.onSettings);
+
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    // This will be handled by the parent component through node selection
-    // The settings button is just visual feedback
+    e.preventDefault()
+    console.log('[TriggerNode] Settings button clicked for node:', id);
+    console.log('[TriggerNode] data.onSettings exists:', !!data.onSettings);
+    console.log('[TriggerNode] Full data:', data);
+    // Trigger the config panel to open
+    if (data.onSettings) {
+      console.log('[TriggerNode] Calling onSettings...');
+      data.onSettings(id)
+    } else {
+      console.log('[TriggerNode] ERROR: onSettings is undefined!');
+    }
   }
 
   return (
@@ -22,9 +33,15 @@ const TriggerNode = ({ data, selected }: CustomNodeProps) => {
             <Zap className="h-4 w-4" />
             <span className="font-medium text-sm">Trigger</span>
           </div>
-          <button 
+          <button
             className="hover:bg-orange-700 p-1 rounded transition-colors"
+            style={{ pointerEvents: 'all' }}
+            data-settings="true"
             onClick={handleSettingsClick}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              console.log('[TriggerNode] PointerDown event');
+            }}
           >
             <Settings className="h-3 w-3" />
           </button>

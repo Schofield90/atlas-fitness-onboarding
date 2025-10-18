@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     else if ((orgMember as any)?.org_id)
       organizationId = (orgMember as any).org_id;
 
+    // Fallback to user_organizations
     if (!organizationId) {
       const { data: userOrg } = await supabase
         .from("user_organizations")
@@ -44,12 +45,25 @@ export async function GET(request: NextRequest) {
       if (userOrg?.organization_id) organizationId = userOrg.organization_id;
     }
 
+    // Fallback to organization_staff (for staff members and super admins)
     if (!organizationId) {
+      const { data: staffOrg } = await supabase
+        .from("organization_staff")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+      if (staffOrg?.organization_id) organizationId = staffOrg.organization_id;
+    }
+
+    if (!organizationId) {
+      console.log('[booking-links GET] Organization not found for user:', user.id);
       return NextResponse.json(
         { error: "Organization not found" },
         { status: 404 },
       );
     }
+
+    console.log('[booking-links GET] Found organization:', organizationId);
 
     const bookingLinks =
       await serverBookingLinkService.listBookingLinks(organizationId);
