@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     if (appointmentTypes.length === 0) {
       appointmentTypes = [
         {
-          id: "default",
+          id: null, // Must be null for fallback, not "default" string
           name: bookingLink.name || "Consultation",
           description: bookingLink.description || "Book a consultation call",
           duration_minutes: 30,

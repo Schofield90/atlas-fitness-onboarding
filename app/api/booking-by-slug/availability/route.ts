@@ -42,21 +42,31 @@ export async function GET(request: NextRequest) {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
     );
 
-    // Get booking link details
-    const { data: bookingLink, error: linkError } = await supabase
+    // Get booking link details - handle duplicates by getting most recent
+    const { data: bookingLinkData, error: linkError } = await supabase
       .from("booking_links")
       .select("*")
       .eq("slug", slug)
-      .single();
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
 
-    if (linkError || !bookingLink) {
+    if (linkError || !bookingLinkData || bookingLinkData.length === 0) {
       return NextResponse.json(
         { error: "Booking link not found" },
         { status: 404 },
       );
     }
+
+    // Use most recent if multiple exist with same slug
+    const bookingLink = bookingLinkData[0];
 
     // Default to next 7 days if no dates provided
     const startDate = startDateParam
@@ -121,7 +131,7 @@ export async function GET(request: NextRequest) {
                 staff_id: bookingLink.user_id || "default-staff",
                 staff_name: "Atlas Fitness Trainer",
                 appointment_type_id:
-                  bookingLink.appointment_type_ids?.[0] || "default",
+                  bookingLink.appointment_type_ids?.[0] || null, // Must be UUID or null, not "default"
                 appointment_type_name: bookingLink.name || "Consultation",
                 duration_minutes: 30,
               });
