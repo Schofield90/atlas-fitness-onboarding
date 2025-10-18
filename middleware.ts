@@ -36,6 +36,7 @@ const publicRoutes = [
   '/api/webhooks',
   '/api/public-api',
   '/api/booking-by-slug',
+  '/api/booking-links/check-slug', // Slug availability check - no auth required
   '/api/login-otp',
   '/api/health-check',
   '/api/saas-admin', // Admin API handles its own auth

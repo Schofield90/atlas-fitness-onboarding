@@ -354,7 +354,8 @@ export class BookingLinkService {
     slug: string,
     excludeId?: string,
   ): Promise<boolean> {
-    const supabase = await this.getSupabaseClient();
+    // Use admin client for slug checks - no auth required for availability checks
+    const supabase = await this.getAdminSupabaseClient();
     let query = supabase.from("booking_links").select("id").eq("slug", slug);
 
     if (excludeId) {

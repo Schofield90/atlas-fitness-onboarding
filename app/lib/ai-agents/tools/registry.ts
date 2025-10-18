@@ -17,6 +17,7 @@ import { ANALYTICS_TOOLS } from "./analytics-tools";
 import { MESSAGING_TOOLS } from "./messaging-tools";
 import { AUTOMATION_TOOLS } from "./automation-tools";
 import { GOHIGHLEVEL_TOOLS } from "./gohighlevel-tools";
+import { UTILITY_TOOLS } from "./utility-tools";
 
 /**
  * Tool Registry Class
@@ -40,6 +41,7 @@ export class ToolRegistry {
       ...MESSAGING_TOOLS,
       ...AUTOMATION_TOOLS,
       ...GOHIGHLEVEL_TOOLS,
+      ...UTILITY_TOOLS,
     ];
 
     allTools.forEach((tool) => this.registerTool(tool));
