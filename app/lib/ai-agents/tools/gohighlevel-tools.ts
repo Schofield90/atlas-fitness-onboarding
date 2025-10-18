@@ -291,41 +291,56 @@ export class BookGHLAppointmentTool extends BaseTool {
     const startDate = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - timezoneOffsetMs;
     const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
 
+    // DIAGNOSTIC: Log timezone calculation details
+    console.info("[GHL_TIMEZONE_CALC]", {
+      requestedDate: date,
+      parsedDate: { year, month, day },
+      isDST,
+      timezoneOffsetMs,
+      startDateUTC: new Date(startDate).toISOString(),
+      endDateUTC: new Date(endDate).toISOString(),
+      startDateLondon: new Date(startDate).toLocaleString('en-GB', { timeZone: 'Europe/London' }),
+      startTimestamp: startDate,
+      endTimestamp: endDate,
+    });
+
     // Fetch available slots from GHL v2 API
     // NOTE: This endpoint automatically filters out already-booked appointments
-    const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Version: "2021-07-28",
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        next: { revalidate: 0 },
+    const url = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`;
+    console.info("[GHL_API_REQUEST]", { url, calendarId, date });
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-07-28",
+        "Content-Type": "application/json",
       },
-    );
+      cache: "no-store",
+      next: { revalidate: 0 },
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("[GHL_API_ERROR]", { status: response.status, statusText: response.statusText, errorText });
       throw new Error(`Failed to fetch calendar slots: ${response.statusText} - ${errorText}`);
     }
 
     const slotsData = await response.json();
 
-    // DIAGNOSTIC: Log raw GHL API response (first 3 slots only, no PII)
+    // DIAGNOSTIC: Log raw GHL API response
     console.info("[GHL_API_RESPONSE]", {
       calendarId,
       date,
-      totalKeys: Object.keys(slotsData).length,
-      dateKeys: Object.keys(slotsData).filter(k => k !== "traceId"),
-      sampleSlots: Object.entries(slotsData)
+      rawResponse: JSON.stringify(slotsData).substring(0, 500), // First 500 chars
+      totalKeys: typeof slotsData === 'object' ? Object.keys(slotsData).length : 0,
+      dateKeys: typeof slotsData === 'object' ? Object.keys(slotsData).filter(k => k !== "traceId") : [],
+      sampleSlots: typeof slotsData === 'object' ? Object.entries(slotsData)
         .filter(([k]) => k !== "traceId")
         .map(([dateKey, data]: [string, any]) => ({
           date: dateKey,
           slotCount: data?.slots?.length || 0,
           firstThreeSlots: data?.slots?.slice(0, 3) || []
-        }))
+        })) : []
     });
 
     // Convert API response to slot objects
