@@ -110,8 +110,26 @@ export class AgentOrchestrator {
   /**
    * Load agent's system prompt with appended SOPs (Standard Operating Procedures) and self-debug instructions
    */
-  private async loadAgentSystemPrompt(agentId: string, basePrompt: string): Promise<string> {
+  private async loadAgentSystemPrompt(
+    agentId: string,
+    basePrompt: string,
+    organizationId?: string
+  ): Promise<string> {
     try {
+      // Fetch organization timezone for date/time context
+      let orgTimezone = 'Europe/London'; // Default fallback
+      if (organizationId) {
+        const { data: org } = await this.supabase
+          .from('organizations')
+          .select('timezone')
+          .eq('id', organizationId)
+          .single();
+
+        if (org?.timezone) {
+          orgTimezone = org.timezone;
+        }
+      }
+
       // Fetch SOPs linked to this agent via agent_sops junction table
       const { data: agentSops, error: sopsError } = await this.supabase
         .from('agent_sops')
@@ -242,9 +260,9 @@ ${generalTones.join('\n\n---\n\n')}
       const nowISO = now.toISOString(); // Full ISO with timezone
       const epochMs = now.getTime();
 
-      // Format for human readability
-      const ukDateTime = now.toLocaleString('en-GB', {
-        timeZone: 'Europe/London',
+      // Format for human readability in organization's timezone
+      const localDateTime = now.toLocaleString('en-GB', {
+        timeZone: orgTimezone,
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -254,7 +272,7 @@ ${generalTones.join('\n\n---\n\n')}
         hour12: false
       });
       const dayOfWeek = now.toLocaleDateString('en-GB', {
-        timeZone: 'Europe/London',
+        timeZone: orgTimezone,
         weekday: 'long'
       });
 
@@ -263,7 +281,8 @@ ${generalTones.join('\n\n---\n\n')}
         nowISO,
         epochMs,
         dayOfWeek,
-        ukDateTime
+        localDateTime,
+        timezone: orgTimezone
       });
 
       const dateHeader = `# CURRENT DATE/TIME (SOURCE OF TRUTH)
@@ -272,8 +291,8 @@ ${generalTones.join('\n\n---\n\n')}
 
 - **Today's Date (ISO)**: ${todayISODate}
 - **Day of Week**: ${dayOfWeek}
-- **Current Time**: ${ukDateTime}
-- **Timezone**: Europe/London
+- **Current Time**: ${localDateTime}
+- **Timezone**: ${orgTimezone}
 - **Unix Timestamp**: ${epochMs}
 
 When the user asks "what day is it" or you need to know the current date, use the information above.
@@ -313,8 +332,8 @@ When the user asks "what day is it" or you need to know the current date, use th
 
 - **Today's Date (ISO)**: ${todayISODate}
 - **Day of Week**: ${dayOfWeek}
-- **Current Time**: ${ukDateTime}
-- **Timezone**: Europe/London
+- **Current Time**: ${localDateTime}
+- **Timezone**: ${orgTimezone}
 - **Unix Timestamp**: ${epochMs}
 
 When the user asks "what day is it" or you need to know the current date, use the information above.
@@ -716,7 +735,7 @@ When the user asks "what day is it" or you need to know the current date, use th
     const provider = new OpenAIProvider();
 
     // Load system prompt with SOPs appended
-    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.organization_id);
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -775,7 +794,7 @@ When the user asks "what day is it" or you need to know the current date, use th
     const provider = new AnthropicProvider();
 
     // Load system prompt with SOPs appended
-    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.organization_id);
 
     // DEBUG: Log the system prompt to verify exact scripts are being included
     console.log('[DEBUG] System prompt length:', systemPrompt.length);
@@ -1195,7 +1214,7 @@ When the user asks "what day is it" or you need to know the current date, use th
       const tools = this.toolRegistry.getToolsForOpenAI(agent.allowed_tools);
 
       // Load system prompt with SOPs appended
-      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.organization_id);
 
       const response = await provider.execute(
         [
@@ -1233,7 +1252,7 @@ When the user asks "what day is it" or you need to know the current date, use th
       const tools = this.toolRegistry.getToolsForAnthropic(agent.allowed_tools);
 
       // Load system prompt with SOPs appended
-      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt, agent.organization_id);
 
       const response = await provider.execute(
         [
