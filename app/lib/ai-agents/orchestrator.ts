@@ -992,10 +992,15 @@ When the user asks "what day is it" or you need to know the current date, use th
       }
 
       // Extract final text content
+      console.log('[DEBUG] Final result content blocks:', JSON.stringify(finalResult.content, null, 2));
+
       const finalText = finalResult.content
         ?.filter((block: any) => block.type === "text")
         .map((block: any) => block.text)
         .join("") || "";
+
+      console.log('[DEBUG] Final text extracted:', finalText.length, 'chars');
+      console.log('[DEBUG] Final text preview:', finalText.substring(0, 200));
 
       // Check for hallucinations (agent claiming success when tools failed) (NEW)
       const hallucinationCheck = detectPotentialHallucination(finalText, toolResults);

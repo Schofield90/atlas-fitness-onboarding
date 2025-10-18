@@ -5,9 +5,10 @@ import { createGoogleCalendarEvent } from "@/app/lib/google-calendar";
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
 
-// Initialize Supabase client
+// Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,28 +49,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    // Use service role to bypass RLS for public booking endpoint
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
-    // Get booking link details
-    const { data: bookingLink, error: linkError } = await supabase
+    // Get booking link details - handle duplicates by getting most recent
+    const { data: bookingLinkData, error: linkError } = await supabase
       .from("booking_links")
       .select("*")
       .eq("slug", slug)
       .eq("is_active", true)
-      .single();
+      .order("created_at", { ascending: false });
 
     console.log("Booking link query result:", {
       slug,
-      found: !!bookingLink,
+      count: bookingLinkData?.length || 0,
       error: linkError?.message,
     });
 
-    if (!bookingLink) {
+    if (linkError || !bookingLinkData || bookingLinkData.length === 0) {
+      console.error("Booking link query error:", linkError);
       return NextResponse.json(
         { error: "Booking link not found or inactive" },
         { status: 404 },
       );
     }
+
+    // Use most recent if multiple exist with same slug
+    const bookingLink = bookingLinkData[0];
 
     // Calculate end time (default to 30 minutes)
     const startDate = new Date(start_time);

@@ -15,8 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Slug is required" }, { status: 400 });
     }
 
-    // Create a direct Supabase client with service role key for public access
-    // This bypasses RLS and authentication requirements
+    // Use service role key to bypass RLS for public endpoint
     if (
       !process.env.NEXT_PUBLIC_SUPABASE_URL ||
       !process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -109,19 +108,25 @@ export async function GET(request: NextRequest) {
     // Get organization details for branding
     const { data: organization, error: orgError } = await supabase
       .from("organizations")
-      .select("name, logo_url, website, phone, address")
+      .select("id, name")
       .eq("id", bookingLink.organization_id)
       .single();
 
     if (orgError) {
       console.error("Error fetching organization:", orgError);
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
     }
 
     // Default equipment requirements
     const equipmentRequirements = [];
 
-    // Get assigned staff details - simplified to organization owner for now
+    // Get assigned staff details
     let assignedStaff = [];
+
+    // Try 1: Check if booking link has a specific user assigned
     if (bookingLink.user_id) {
       const { data: staff, error: staffError } = await supabase
         .from("users")
@@ -142,12 +147,57 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If no staff found, create a default staff member
+    // Try 2: If no specific staff, get any staff from organization
+    if (assignedStaff.length === 0) {
+      const { data: orgStaff, error: orgStaffError } = await supabase
+        .from("organization_staff")
+        .select("user_id, users(id, full_name, avatar_url, title)")
+        .eq("organization_id", bookingLink.organization_id)
+        .limit(1);
+
+      if (!orgStaffError && orgStaff && orgStaff.length > 0 && orgStaff[0].users) {
+        const staffUser = Array.isArray(orgStaff[0].users) ? orgStaff[0].users[0] : orgStaff[0].users;
+        assignedStaff = [
+          {
+            id: staffUser.id,
+            full_name: staffUser.full_name || "Staff Member",
+            avatar_url: staffUser.avatar_url,
+            title: staffUser.title || "Trainer",
+            specializations: [],
+          },
+        ];
+      }
+    }
+
+    // Try 3: If still no staff found, check user_organizations for organization owner
+    if (assignedStaff.length === 0) {
+      const { data: userOrgs, error: userOrgError } = await supabase
+        .from("user_organizations")
+        .select("user_id, users(id, full_name, avatar_url, title)")
+        .eq("organization_id", bookingLink.organization_id)
+        .eq("role", "owner")
+        .limit(1);
+
+      if (!userOrgError && userOrgs && userOrgs.length > 0 && userOrgs[0].users) {
+        const ownerUser = Array.isArray(userOrgs[0].users) ? userOrgs[0].users[0] : userOrgs[0].users;
+        assignedStaff = [
+          {
+            id: ownerUser.id,
+            full_name: ownerUser.full_name || "Staff Member",
+            avatar_url: ownerUser.avatar_url,
+            title: ownerUser.title || "Owner",
+            specializations: [],
+          },
+        ];
+      }
+    }
+
+    // Fallback: Create default staff with organization name
     if (assignedStaff.length === 0) {
       assignedStaff = [
         {
           id: "default-staff",
-          full_name: "Atlas Fitness Trainer",
+          full_name: `${organization?.name || "Gym"} Trainer`,
           avatar_url: null,
           title: "Personal Trainer",
           specializations: [],
@@ -175,7 +225,7 @@ export async function GET(request: NextRequest) {
           primary_color: "#f97316",
           background_color: "#ffffff",
           text_color: "#1f2937",
-          logo_url: organization?.logo_url || null,
+          logo_url: null,
           custom_css: null,
         },
         payment_settings: {
@@ -204,7 +254,7 @@ export async function GET(request: NextRequest) {
       },
       appointment_types: appointmentTypes || [],
       form_fields: formFields,
-      organization: organization || { name: "Atlas Fitness" },
+      organization: organization,
       equipment_requirements: equipmentRequirements,
       assigned_staff: assignedStaff,
     });
