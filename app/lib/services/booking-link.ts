@@ -179,7 +179,8 @@ export class BookingLinkService {
       updated_at: new Date().toISOString(),
     };
 
-    const supabaseClient = await this.getSupabaseClient();
+    // Use admin client for INSERT to bypass RLS - authorization already checked in API route
+    const supabaseClient = await this.getAdminSupabaseClient();
     let { data: result, error } = await supabaseClient
       .from("booking_links")
       .insert(insertData)

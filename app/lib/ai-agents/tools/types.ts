@@ -43,7 +43,8 @@ export interface AgentTool {
     | "analytics"
     | "data"
     | "automation"
-    | "crm";
+    | "crm"
+    | "utility";
   parametersSchema: z.ZodSchema;
   requiresPermission?: string;
   isSystem: boolean;
@@ -97,7 +98,8 @@ export abstract class BaseTool implements AgentTool {
     | "analytics"
     | "data"
     | "automation"
-    | "crm";
+    | "crm"
+    | "utility";
   abstract parametersSchema: z.ZodSchema;
 
   requiresPermission?: string;

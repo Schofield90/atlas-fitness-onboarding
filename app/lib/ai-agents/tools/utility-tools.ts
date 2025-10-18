@@ -3,19 +3,24 @@
  * Provides basic utility functions like getting current date/time
  */
 
-import { AgentTool } from "./types";
+import { z } from "zod";
+import { BaseTool, ToolExecutionContext, ToolExecutionResult } from "./types";
 
-class GetCurrentDateTimeTool implements AgentTool {
+class GetCurrentDateTimeTool extends BaseTool {
+  id = "get_current_datetime";
   name = "get_current_datetime";
   description = "Get the current date and time in Europe/London timezone. Use this to know what day it is today, what day tomorrow is, what day of the week it is, etc. Always call this before making calendar bookings or when you need to know the current date.";
+  category = "utility" as const;
 
-  parameters = {
-    type: "object" as const,
-    properties: {},
-    required: [],
-  };
+  parametersSchema = z.object({});
 
-  async execute(): Promise<any> {
+  isSystem = true;
+  enabled = true;
+
+  async execute(
+    params: any,
+    context: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
     const now = new Date();
 
     // Get UK time details
